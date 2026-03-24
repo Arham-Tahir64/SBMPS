@@ -34,6 +34,16 @@ class SpaceObject(Base):
     current_state: Mapped["CurrentState | None"] = relationship(
         back_populates="space_object", cascade="all, delete-orphan", uselist=False
     )
+    primary_conjunction_events: Mapped[list["ConjunctionEvent"]] = relationship(
+        foreign_keys="ConjunctionEvent.primary_object_id",
+        back_populates="primary_object",
+        cascade="all, delete-orphan",
+    )
+    secondary_conjunction_events: Mapped[list["ConjunctionEvent"]] = relationship(
+        foreign_keys="ConjunctionEvent.secondary_object_id",
+        back_populates="secondary_object",
+        cascade="all, delete-orphan",
+    )
 
 
 class TleSnapshot(Base):
@@ -83,3 +93,54 @@ class CurrentState(Base):
     velocity_z_km_s: Mapped[float] = mapped_column(Float, nullable=False)
 
     space_object: Mapped[SpaceObject] = relationship(back_populates="current_state")
+
+
+class ConjunctionEvent(Base):
+    __tablename__ = "conjunction_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "primary_object_id",
+            "secondary_object_id",
+            "tca",
+            name="uq_conjunction_events_objects_tca",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    primary_object_id: Mapped[str] = mapped_column(
+        ForeignKey("space_objects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    secondary_object_id: Mapped[str] = mapped_column(
+        ForeignKey("space_objects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    tca: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    miss_distance_km: Mapped[float] = mapped_column(Float, nullable=False)
+    relative_velocity_km_s: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
+
+    primary_object: Mapped[SpaceObject] = relationship(
+        foreign_keys=[primary_object_id], back_populates="primary_conjunction_events"
+    )
+    secondary_object: Mapped[SpaceObject] = relationship(
+        foreign_keys=[secondary_object_id], back_populates="secondary_conjunction_events"
+    )
+    risk_assessment: Mapped["RiskAssessment | None"] = relationship(
+        back_populates="conjunction_event", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class RiskAssessment(Base):
+    __tablename__ = "risk_assessments"
+
+    conjunction_event_id: Mapped[str] = mapped_column(
+        ForeignKey("conjunction_events.id", ondelete="CASCADE"), primary_key=True
+    )
+    risk_tier: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    pc_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    methodology: Mapped[str] = mapped_column(String(32), nullable=False)
+    assessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    conjunction_event: Mapped[ConjunctionEvent] = relationship(back_populates="risk_assessment")
