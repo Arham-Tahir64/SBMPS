@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { DataTablePlaceholder, ShellSection } from "@sdmps/ui";
+import { DataTablePlaceholder, ShellSection, StateNotice } from "@sdmps/ui";
 
 import { ObjectInspector } from "../../components/panels/object-inspector";
 import { useObjectDetail } from "../../lib/queries/use-object-detail";
@@ -34,7 +34,16 @@ export function ObjectsPageClient() {
           {isFallback ? " from fallback placeholder data" : " from the API"}
           {isLoading ? " · refreshing" : ""}
         </div>
-        {error ? <div style={{ color: "var(--muted)", marginTop: 6 }}>Latest request failed, continuing with cached or fallback data.</div> : null}
+        {error ? (
+          <div style={{ color: "var(--muted)", marginTop: 6 }}>
+            Latest request failed, continuing with cached or fallback data.
+          </div>
+        ) : null}
+        {!isLoading && data.length === 0 && !isFallback ? (
+          <div style={{ color: "var(--muted)", marginTop: 6 }}>
+            No persisted object state is available yet. Refresh the feed to seed the catalog.
+          </div>
+        ) : null}
       </ShellSection>
       <div
         style={{
@@ -50,15 +59,25 @@ export function ObjectsPageClient() {
           rowIds={data.map((item) => item.id)}
           selectedRowId={selectedObjectId}
           onRowClick={selectObject}
-          caption={`Objects · ${data.length} rows${isFallback ? " · fallback" : " · api"}${isLoading ? " · loading" : ""}`}
+          caption={`Objects · ${data.length} rows${isFallback ? " · fallback" : " · api"}${isLoading ? " · loading" : ""}${selectedObject ? ` · selected ${selectedObject.name}` : ""}`}
           emptyMessage="No tracked objects were returned."
+          isLoading={isLoading && data.length === 0}
+          loadingMessage="Loading persisted tracked objects..."
         />
-        <ObjectInspector
-          object={selectedObject}
-          detail={objectDetail.data}
-          isLoading={objectDetail.isLoading}
-          isFallback={isFallback || objectDetail.isFallback}
-        />
+        <div style={{ display: "grid", gap: 12 }}>
+          {!selectedObject && data.length > 0 ? (
+            <StateNotice title="Selection" tone="info">
+              Choose an object from the table to inspect its current propagated state.
+            </StateNotice>
+          ) : null}
+          <ObjectInspector
+            object={selectedObject}
+            detail={objectDetail.data}
+            isLoading={objectDetail.isLoading}
+            isFallback={isFallback || objectDetail.isFallback}
+            hasDetailError={Boolean(objectDetail.error)}
+          />
+        </div>
       </div>
     </div>
   );

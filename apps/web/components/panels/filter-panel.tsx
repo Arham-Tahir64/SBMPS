@@ -3,7 +3,7 @@
 import type { FilterDefinition } from "@sdmps/api-client";
 import type { FeedStatus } from "@sdmps/domain";
 import type { LayerVisibility } from "../../store/operations-store";
-import { ShellSection } from "@sdmps/ui";
+import { ShellSection, StateNotice } from "@sdmps/ui";
 
 type FilterPanelProps = {
   filters: FilterDefinition[];
@@ -18,6 +18,7 @@ type FilterPanelProps = {
   objectCount: number;
   conjunctionCount: number;
   selectedObjectName?: string;
+  hasRequestError?: boolean;
 };
 
 function formatTimestamp(value: string): string {
@@ -41,7 +42,8 @@ export function FilterPanel({
   onRefreshFeeds,
   objectCount,
   conjunctionCount,
-  selectedObjectName
+  selectedObjectName,
+  hasRequestError
 }: FilterPanelProps) {
   const staleFeedCount = feeds.filter((item) => item.isStale).length;
   const layerMeta: Record<keyof LayerVisibility, { label: string; summary: string }> = {
@@ -97,10 +99,24 @@ export function FilterPanel({
             {feeds.length > 0 ? ` · ${staleFeedCount} stale` : ""}
           </div>
         </div>
+        {hasRequestError ? (
+          <div style={{ color: "var(--muted)", marginTop: 10 }}>
+            Latest request failed. Cached or fallback state is still rendered.
+          </div>
+        ) : null}
+        {!isLoading && !isFallback && objectCount === 0 && feeds.length === 0 ? (
+          <div style={{ color: "var(--muted)", marginTop: 10 }}>
+            No persisted live state exists yet. Refresh the feed to seed tracked objects and feed telemetry.
+          </div>
+        ) : null}
       </ShellSection>
       <ShellSection title="Feed Status">
         {feeds.length === 0 ? (
-          <div style={{ color: "var(--muted)" }}>The current snapshot did not include any feed telemetry.</div>
+          <StateNotice title="Feed State" tone={isFallback ? "warning" : "neutral"}>
+            {isFallback
+              ? "Fallback snapshot did not include persisted feed telemetry."
+              : "The current snapshot did not include any persisted feed telemetry."}
+          </StateNotice>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {feeds.map((feed) => (

@@ -1,5 +1,5 @@
 import type { ConjunctionEventDetail, ConjunctionEventSummary } from "@sdmps/domain";
-import { ShellSection, StatusChip } from "@sdmps/ui";
+import { ShellSection, StateNotice, StatusChip } from "@sdmps/ui";
 
 function hasConjunctionDetail(
   value: ConjunctionEventSummary | ConjunctionEventDetail
@@ -11,22 +11,16 @@ export function ConjunctionInspector({
   conjunction,
   detail,
   isLoading,
-  isFallback
+  isFallback,
+  hasDetailError
 }: {
   conjunction?: ConjunctionEventSummary;
   detail?: ConjunctionEventDetail;
   isLoading?: boolean;
   isFallback?: boolean;
+  hasDetailError?: boolean;
 }) {
   const resolvedConjunction = detail ?? conjunction;
-
-  if (isLoading && conjunction) {
-    return (
-      <ShellSection title="Conjunction Inspector">
-        Loading richer conjunction detail for {conjunction.primaryObjectName} vs {conjunction.secondaryObjectName}.
-      </ShellSection>
-    );
-  }
 
   if (!resolvedConjunction) {
     return (
@@ -38,6 +32,17 @@ export function ConjunctionInspector({
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {isLoading && conjunction ? (
+        <StateNotice title="Detail Status" tone="info">
+          Loading richer conjunction detail for {conjunction.primaryObjectName} vs {conjunction.secondaryObjectName}
+          while keeping the current summary visible.
+        </StateNotice>
+      ) : null}
+      {hasDetailError ? (
+        <StateNotice title="Detail Status" tone="warning">
+          The richer conjunction detail request failed. The inspector is showing the latest summary instead.
+        </StateNotice>
+      ) : null}
       <ShellSection title="Event">
         {resolvedConjunction.primaryObjectName} vs {resolvedConjunction.secondaryObjectName}
       </ShellSection>
@@ -59,7 +64,11 @@ export function ConjunctionInspector({
       {hasConjunctionDetail(resolvedConjunction) ? (
         <ShellSection title="Methodology">{resolvedConjunction.methodology}</ShellSection>
       ) : null}
-      {isFallback ? <ShellSection title="Mode">Showing fallback placeholder conjunction data.</ShellSection> : null}
+      {isFallback ? (
+        <StateNotice title="Mode" tone="warning">
+          Showing fallback placeholder conjunction data.
+        </StateNotice>
+      ) : null}
     </div>
   );
 }

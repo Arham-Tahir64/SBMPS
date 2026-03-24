@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { DataTablePlaceholder, ShellSection } from "@sdmps/ui";
+import { DataTablePlaceholder, ShellSection, StateNotice } from "@sdmps/ui";
 
 import { ConjunctionInspector } from "../../components/panels/conjunction-inspector";
 import { useConjunctionDetail } from "../../lib/queries/use-conjunction-detail";
@@ -34,7 +34,16 @@ export function ConjunctionsPageClient() {
           {isFallback ? " from fallback placeholder data" : " from the API"}
           {isLoading ? " · refreshing" : ""}
         </div>
-        {error ? <div style={{ color: "var(--muted)", marginTop: 6 }}>Latest request failed, continuing with cached or fallback data.</div> : null}
+        {error ? (
+          <div style={{ color: "var(--muted)", marginTop: 6 }}>
+            Latest request failed, continuing with cached or fallback data.
+          </div>
+        ) : null}
+        {!isLoading && data.length === 0 && !isFallback ? (
+          <div style={{ color: "var(--muted)", marginTop: 6 }}>
+            No persisted conjunction watchlist exists yet.
+          </div>
+        ) : null}
       </ShellSection>
       <div
         style={{
@@ -56,15 +65,25 @@ export function ConjunctionsPageClient() {
           rowIds={data.map((item) => item.id)}
           selectedRowId={selectedConjunctionId}
           onRowClick={selectConjunction}
-          caption={`Conjunctions · ${data.length} rows${isFallback ? " · fallback" : " · api"}${isLoading ? " · loading" : ""}`}
+          caption={`Conjunctions · ${data.length} rows${isFallback ? " · fallback" : " · api"}${isLoading ? " · loading" : ""}${selectedConjunction ? ` · selected ${selectedConjunction.primaryObjectName}` : ""}`}
           emptyMessage="No conjunction events were returned."
+          isLoading={isLoading && data.length === 0}
+          loadingMessage="Loading persisted conjunction watchlist..."
         />
-        <ConjunctionInspector
-          conjunction={selectedConjunction}
-          detail={conjunctionDetail.data}
-          isLoading={conjunctionDetail.isLoading}
-          isFallback={isFallback || conjunctionDetail.isFallback}
-        />
+        <div style={{ display: "grid", gap: 12 }}>
+          {!selectedConjunction && data.length > 0 ? (
+            <StateNotice title="Selection" tone="info">
+              Choose a conjunction to inspect the miss distance, TCA, and detail payload.
+            </StateNotice>
+          ) : null}
+          <ConjunctionInspector
+            conjunction={selectedConjunction}
+            detail={conjunctionDetail.data}
+            isLoading={conjunctionDetail.isLoading}
+            isFallback={isFallback || conjunctionDetail.isFallback}
+            hasDetailError={Boolean(conjunctionDetail.error)}
+          />
+        </div>
       </div>
     </div>
   );

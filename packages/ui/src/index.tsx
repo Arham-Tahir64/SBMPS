@@ -48,6 +48,44 @@ export function ShellSection({ title, children }: { title: string; children: Rea
   );
 }
 
+export function StateNotice({
+  title,
+  children,
+  tone = "neutral"
+}: {
+  title: string;
+  children: ReactNode;
+  tone?: "neutral" | "info" | "warning";
+}) {
+  const toneStyles = {
+    neutral: {
+      border: "1px solid rgba(121, 178, 255, 0.14)",
+      background: "rgba(255, 255, 255, 0.02)"
+    },
+    info: {
+      border: "1px solid rgba(83, 194, 255, 0.22)",
+      background: "rgba(83, 194, 255, 0.08)"
+    },
+    warning: {
+      border: "1px solid rgba(255, 157, 66, 0.22)",
+      background: "rgba(255, 157, 66, 0.08)"
+    }
+  } as const;
+
+  return (
+    <div
+      style={{
+        ...toneStyles[tone],
+        borderRadius: 14,
+        padding: 12
+      }}
+    >
+      <div style={{ fontSize: 12, letterSpacing: 1, color: "var(--muted)", marginBottom: 6 }}>{title}</div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
 export function StatusChip({ tone, children }: { tone: RiskTier; children: ReactNode }) {
   const backgroundByTone: Record<RiskTier, string> = {
     low: "rgba(78, 212, 168, 0.16)",
@@ -80,7 +118,9 @@ export function DataTablePlaceholder({
   selectedRowId,
   onRowClick,
   caption,
-  emptyMessage
+  emptyMessage,
+  isLoading,
+  loadingMessage
 }: {
   columns: string[];
   rows: Array<Array<string>>;
@@ -89,6 +129,8 @@ export function DataTablePlaceholder({
   onRowClick?: (rowId: string) => void;
   caption?: string;
   emptyMessage?: string;
+  isLoading?: boolean;
+  loadingMessage?: string;
 }) {
   return (
     <div style={{ overflowX: "auto" }}>
@@ -117,7 +159,7 @@ export function DataTablePlaceholder({
                   color: "var(--muted)"
                 }}
               >
-                {emptyMessage ?? "No records available."}
+                {isLoading ? loadingMessage ?? "Loading records..." : emptyMessage ?? "No records available."}
               </td>
             </tr>
           ) : (

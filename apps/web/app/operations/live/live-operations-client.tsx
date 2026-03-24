@@ -16,7 +16,7 @@ import { FilterPanel } from "../../../components/panels/filter-panel";
 import { ObjectInspector } from "../../../components/panels/object-inspector";
 
 export function LiveOperationsClient() {
-  const { data, isLoading, isFallback } = useLiveSnapshot();
+  const { data, error, isLoading, isFallback } = useLiveSnapshot();
   const refreshFeeds = useFeedRefresh();
   const {
     selectedObjectId,
@@ -71,7 +71,7 @@ export function LiveOperationsClient() {
   return (
     <OperatorShell
       title="Live Operations"
-      subtitle={`${data.objects.length} objects · ${data.conjunctions.length} conjunctions · ${data.feeds.length} feeds${isFallback ? " · fallback data" : " · api data"}${isLoading ? " · loading" : ""}`}
+      subtitle={`${data.objects.length} objects · ${data.conjunctions.length} conjunctions · ${data.feeds.length} feeds${isFallback ? " · fallback data" : " · api data"}${isLoading ? " · loading" : ""}${!isLoading && data.objects.length === 0 && !isFallback ? " · awaiting persisted state" : ""}`}
       leftPanel={
         <FilterPanel
           filters={sampleFilters}
@@ -86,6 +86,7 @@ export function LiveOperationsClient() {
           objectCount={data.objects.length}
           conjunctionCount={data.conjunctions.length}
           selectedObjectName={selectedObject?.name}
+          hasRequestError={Boolean(error)}
         />
       }
       centerPanel={
@@ -106,12 +107,14 @@ export function LiveOperationsClient() {
             detail={objectDetail.data}
             isLoading={objectDetail.isLoading}
             isFallback={isFallback || objectDetail.isFallback}
+            hasDetailError={Boolean(objectDetail.error)}
           />
           <ConjunctionInspector
             conjunction={selectedConjunction}
             detail={conjunctionDetail.data}
             isLoading={conjunctionDetail.isLoading}
             isFallback={isFallback || conjunctionDetail.isFallback}
+            hasDetailError={Boolean(conjunctionDetail.error)}
           />
         </div>
       }
@@ -119,6 +122,7 @@ export function LiveOperationsClient() {
         <AlertInbox
           alerts={data.conjunctions}
           isFallback={isFallback}
+          isLoading={isLoading}
           selectedAlertId={selectedConjunctionId}
           onSelectAlert={handleSelectConjunction}
         />

@@ -1,26 +1,40 @@
 "use client";
 
 import type { ConjunctionEventSummary } from "@sdmps/domain";
-import { ShellSection, StatusChip } from "@sdmps/ui";
+import { ShellSection, StateNotice, StatusChip } from "@sdmps/ui";
 
 export function AlertInbox({
   alerts,
   isFallback,
+  isLoading,
   selectedAlertId,
   onSelectAlert
 }: {
   alerts: ConjunctionEventSummary[];
   isFallback?: boolean;
+  isLoading?: boolean;
   selectedAlertId?: string;
   onSelectAlert?: (alertId: string) => void;
 }) {
+  if (isLoading && alerts.length === 0) {
+    return <ShellSection title="Alerts">Loading conjunction alerts from the current snapshot.</ShellSection>;
+  }
+
   if (alerts.length === 0) {
-    return <ShellSection title="Alerts">No active conjunction alerts.</ShellSection>;
+    return (
+      <ShellSection title="Alerts">
+        {isFallback ? "Fallback snapshot has no active conjunction alerts." : "No active conjunction alerts."}
+      </ShellSection>
+    );
   }
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {isFallback ? <ShellSection title="Mode">Showing fallback alert data because the API is unavailable.</ShellSection> : null}
+      {isFallback ? (
+        <StateNotice title="Mode" tone="warning">
+          Showing fallback alert data because the API is unavailable.
+        </StateNotice>
+      ) : null}
       {alerts.map((alert) => (
         <button
           key={alert.id}
@@ -46,6 +60,9 @@ export function AlertInbox({
           <div style={{ color: "var(--muted)", marginTop: 8 }}>
             TCA {alert.tca} · miss distance {alert.missDistanceKm.toFixed(2)} km
           </div>
+          {selectedAlertId === alert.id ? (
+            <div style={{ color: "var(--muted)", marginTop: 8 }}>Selected for inspector focus.</div>
+          ) : null}
         </button>
       ))}
     </div>
