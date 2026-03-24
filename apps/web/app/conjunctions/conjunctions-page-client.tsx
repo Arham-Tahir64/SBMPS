@@ -66,7 +66,7 @@ export function ConjunctionsPageClient() {
           selectedRowId={selectedConjunctionId}
           onRowClick={selectConjunction}
           caption={`Conjunctions · ${data.length} rows${isFallback ? " · fallback" : " · api"}${isLoading ? " · loading" : ""}${selectedConjunction ? ` · selected ${selectedConjunction.primaryObjectName}` : ""}`}
-          emptyMessage="No conjunction events were returned."
+          emptyMessage="No persisted conjunction watchlist exists yet."
           isLoading={isLoading && data.length === 0}
           loadingMessage="Loading persisted conjunction watchlist..."
         />

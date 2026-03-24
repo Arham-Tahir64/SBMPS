@@ -1,6 +1,6 @@
 "use client";
 
-import { getSimulationsWithFallback, queryKeys, sampleSimulationJobs } from "@sdmps/api-client";
+import { getSimulationsWithFallback, queryKeys } from "@sdmps/api-client";
 import { useQuery } from "@tanstack/react-query";
 
 export function useSimulations(enabled = true) {
@@ -12,7 +12,7 @@ export function useSimulations(enabled = true) {
 
   return {
     ...query,
-    data: query.data?.data ?? sampleSimulationJobs,
-    isFallback: query.data?.isFallback ?? true
+    data: query.data?.data ?? [],
+    isFallback: query.data?.isFallback ?? false
   };
 }

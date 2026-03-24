@@ -36,12 +36,15 @@ export const queryKeys = {
   feeds: ["feeds"] as const
 };
 
+export function isApiBaseUrlConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
+}
+
 async function withFallback<T>(
   fetcher: () => Promise<T>,
   fallback?: T
 ): Promise<QueryEnvelope<T>> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!baseUrl) {
+  if (!isApiBaseUrlConfigured()) {
     if (fallback === undefined) {
       throw new Error("API base URL is not configured");
     }
@@ -49,16 +52,8 @@ async function withFallback<T>(
     return { data: fallback, isFallback: true };
   }
 
-  try {
-    const data = await fetcher();
-    return { data, isFallback: false };
-  } catch {
-    if (fallback === undefined) {
-      throw new Error("Request failed and no fallback data exists");
-    }
-
-    return { data: fallback, isFallback: true };
-  }
+  const data = await fetcher();
+  return { data, isFallback: false };
 }
 
 export async function getLiveSnapshotWithFallback(): Promise<QueryEnvelope<LiveSnapshot>> {

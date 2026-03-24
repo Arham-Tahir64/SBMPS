@@ -1,6 +1,6 @@
 "use client";
 
-import { getConjunctionsWithFallback, queryKeys, sampleConjunctions } from "@sdmps/api-client";
+import { getConjunctionsWithFallback, queryKeys } from "@sdmps/api-client";
 import { useQuery } from "@tanstack/react-query";
 
 export function useConjunctions() {
@@ -11,7 +11,7 @@ export function useConjunctions() {
 
   return {
     ...query,
-    data: query.data?.data ?? sampleConjunctions,
-    isFallback: query.data?.isFallback ?? true
+    data: query.data?.data ?? [],
+    isFallback: query.data?.isFallback ?? false
   };
 }

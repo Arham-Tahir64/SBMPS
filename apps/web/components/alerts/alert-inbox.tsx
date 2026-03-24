@@ -16,14 +16,18 @@ export function AlertInbox({
   selectedAlertId?: string;
   onSelectAlert?: (alertId: string) => void;
 }) {
-  if (isLoading && alerts.length === 0) {
+  const activeAlerts = alerts.filter((alert) => alert.riskTier === "high" || alert.riskTier === "critical");
+
+  if (isLoading && activeAlerts.length === 0) {
     return <ShellSection title="Alerts">Loading conjunction alerts from the current snapshot.</ShellSection>;
   }
 
-  if (alerts.length === 0) {
+  if (activeAlerts.length === 0) {
     return (
       <ShellSection title="Alerts">
-        {isFallback ? "Fallback snapshot has no active conjunction alerts." : "No active conjunction alerts."}
+        {isFallback
+          ? "Fallback snapshot has no high-risk conjunction alerts."
+          : "No high-risk conjunction alerts currently active."}
       </ShellSection>
     );
   }
@@ -35,7 +39,7 @@ export function AlertInbox({
           Showing fallback alert data because the API is unavailable.
         </StateNotice>
       ) : null}
-      {alerts.map((alert) => (
+      {activeAlerts.map((alert) => (
         <button
           key={alert.id}
           type="button"

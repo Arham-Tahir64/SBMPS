@@ -1,6 +1,6 @@
 "use client";
 
-import { sampleFilters } from "@sdmps/api-client";
+import { isApiBaseUrlConfigured, sampleFilters } from "@sdmps/api-client";
 import { useEffect } from "react";
 
 import { useConjunctionDetail } from "../../../lib/queries/use-conjunction-detail";
@@ -17,6 +17,7 @@ import { ObjectInspector } from "../../../components/panels/object-inspector";
 
 export function LiveOperationsClient() {
   const { data, error, isLoading, isFallback } = useLiveSnapshot();
+  const apiConfigured = isApiBaseUrlConfigured();
   const refreshFeeds = useFeedRefresh();
   const {
     selectedObjectId,
@@ -55,6 +56,9 @@ export function LiveOperationsClient() {
 
   const selectedObject = data.objects.find((item) => item.id === selectedObjectId);
   const selectedConjunction = data.conjunctions.find((item) => item.id === selectedConjunctionId);
+  const activeAlertCount = data.conjunctions.filter(
+    (item) => item.riskTier === "high" || item.riskTier === "critical"
+  ).length;
   const handleSelectConjunction = (conjunctionId?: string) => {
     selectConjunction(conjunctionId);
 
@@ -71,7 +75,7 @@ export function LiveOperationsClient() {
   return (
     <OperatorShell
       title="Live Operations"
-      subtitle={`${data.objects.length} objects · ${data.conjunctions.length} conjunctions · ${data.feeds.length} feeds${isFallback ? " · fallback data" : " · api data"}${isLoading ? " · loading" : ""}${!isLoading && data.objects.length === 0 && !isFallback ? " · awaiting persisted state" : ""}`}
+      subtitle={`${data.objects.length} objects · ${data.conjunctions.length} conjunctions · ${activeAlertCount} active alerts · ${data.feeds.length} feeds${isFallback ? " · fallback data" : " · api data"}${isLoading ? " · loading" : ""}${!isLoading && data.objects.length === 0 && !isFallback ? " · awaiting persisted state" : ""}`}
       leftPanel={
         <FilterPanel
           filters={sampleFilters}
@@ -82,7 +86,7 @@ export function LiveOperationsClient() {
           isFallback={isFallback}
           isLoading={isLoading}
           isRefreshing={refreshFeeds.isPending}
-          onRefreshFeeds={isFallback ? undefined : () => refreshFeeds.mutate()}
+          onRefreshFeeds={apiConfigured ? () => refreshFeeds.mutate() : undefined}
           objectCount={data.objects.length}
           conjunctionCount={data.conjunctions.length}
           selectedObjectName={selectedObject?.name}

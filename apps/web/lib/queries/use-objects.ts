@@ -1,6 +1,6 @@
 "use client";
 
-import { getObjectsWithFallback, queryKeys, sampleObjects } from "@sdmps/api-client";
+import { getObjectsWithFallback, queryKeys } from "@sdmps/api-client";
 import { useQuery } from "@tanstack/react-query";
 
 export function useObjects() {
@@ -11,7 +11,7 @@ export function useObjects() {
 
   return {
     ...query,
-    data: query.data?.data ?? sampleObjects,
-    isFallback: query.data?.isFallback ?? true
+    data: query.data?.data ?? [],
+    isFallback: query.data?.isFallback ?? false
   };
 }

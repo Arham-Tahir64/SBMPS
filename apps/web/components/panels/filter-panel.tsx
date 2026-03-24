@@ -49,11 +49,12 @@ export function FilterPanel({
   const layerMeta: Record<keyof LayerVisibility, { label: string; summary: string }> = {
     objects: {
       label: "Tracked Objects",
-      summary: objectCount > 0 ? `${objectCount} available in snapshot` : "Awaiting object data"
+      summary: objectCount > 0 ? `${objectCount} available in snapshot` : "Refresh the feed to seed persisted objects"
     },
     conjunctions: {
       label: "Conjunction Markers",
-      summary: conjunctionCount > 0 ? `${conjunctionCount} active events` : "No conjunctions in snapshot"
+      summary:
+        conjunctionCount > 0 ? `${conjunctionCount} active events` : "No persisted conjunction watchlist exists yet"
     },
     heatmap: {
       label: "Altitude Heatmap",
@@ -115,7 +116,7 @@ export function FilterPanel({
           <StateNotice title="Feed State" tone={isFallback ? "warning" : "neutral"}>
             {isFallback
               ? "Fallback snapshot did not include persisted feed telemetry."
-              : "The current snapshot did not include any persisted feed telemetry."}
+              : "No persisted feed state exists yet. Refresh the feed to seed tracked objects and telemetry."}
           </StateNotice>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>

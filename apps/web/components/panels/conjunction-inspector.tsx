@@ -25,7 +25,7 @@ export function ConjunctionInspector({
   if (!resolvedConjunction) {
     return (
       <ShellSection title="Conjunction Inspector">
-        Select a conjunction to inspect its miss distance and time of closest approach.
+        No persisted conjunction watchlist exists yet.
       </ShellSection>
     );
   }
@@ -54,7 +54,7 @@ export function ConjunctionInspector({
       <ShellSection title="Relative Velocity">
         {hasConjunctionDetail(resolvedConjunction)
           ? `${resolvedConjunction.relativeVelocityKmPerSecond.toFixed(2)} km/s`
-          : "Detail endpoint not yet loaded."}
+          : "Persisted detail is still loading. The current summary remains visible."}
       </ShellSection>
       {hasConjunctionDetail(resolvedConjunction) ? (
         <ShellSection title="Collision Probability">

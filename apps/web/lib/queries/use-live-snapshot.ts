@@ -3,6 +3,13 @@
 import { getLiveSnapshotWithFallback, queryKeys, sampleLiveSnapshot } from "@sdmps/api-client";
 import { useQuery } from "@tanstack/react-query";
 
+const emptyLiveSnapshot = {
+  ...sampleLiveSnapshot,
+  objects: [],
+  conjunctions: [],
+  feeds: []
+};
+
 export function useLiveSnapshot() {
   const query = useQuery({
     queryKey: queryKeys.live,
@@ -11,7 +18,7 @@ export function useLiveSnapshot() {
 
   return {
     ...query,
-    data: query.data?.data ?? sampleLiveSnapshot,
-    isFallback: query.data?.isFallback ?? true
+    data: query.data?.data ?? emptyLiveSnapshot,
+    isFallback: query.data?.isFallback ?? false
   };
 }
