@@ -1,48 +1,13 @@
 from __future__ import annotations
 
-import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from urllib.request import Request, urlopen
+
+from sqlalchemy import and_, func, select
+from sdmps_data import CurrentState, FeedStatus, SpaceObject, TleSnapshot, init_database, session_scope
+from sdmps_integrations import CelesTrakClient
 
 from src.core.config import get_settings
-
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS space_objects (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  norad_id INTEGER NOT NULL UNIQUE,
-  object_class TEXT NOT NULL,
-  source TEXT NOT NULL,
-  operator_name TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS tle_snapshots (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  object_id TEXT NOT NULL,
-  source TEXT NOT NULL,
-  line0 TEXT NOT NULL,
-  line1 TEXT NOT NULL,
-  line2 TEXT NOT NULL,
-  epoch TEXT NOT NULL,
-  ingested_at TEXT NOT NULL,
-  UNIQUE(object_id, source, epoch)
-);
-
-CREATE TABLE IF NOT EXISTS feed_statuses (
-  source TEXT PRIMARY KEY,
-  last_ingested_at TEXT,
-  last_attempted_at TEXT NOT NULL,
-  stale_threshold_minutes INTEGER NOT NULL,
-  is_stale INTEGER NOT NULL,
-  object_count INTEGER NOT NULL,
-  message TEXT
-);
-"""
 
 
 @dataclass
@@ -124,128 +89,210 @@ def parse_tle_text(raw_text: str, source: str = "CelesTrak") -> list[ParsedTle]:
     return parsed
 
 
-def _connect() -> sqlite3.Connection:
-    path = Path(get_settings().local_database_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(path)
-    connection.row_factory = sqlite3.Row
-    return connection
-
-
 def init_db() -> None:
-    with _connect() as connection:
-        connection.executescript(SCHEMA)
-        connection.commit()
+    init_database(get_settings().database_url)
 
 
 def fetch_celestrak_tles() -> str:
     settings = get_settings()
-    request = Request(settings.celestrak_active_feed_url, headers={"User-Agent": "SDMPS/0.1"})
-    with urlopen(request, timeout=settings.feed_request_timeout_seconds) as response:
-        return response.read().decode("utf-8")
+    client = CelesTrakClient(settings.celestrak_active_feed_url)
+    return client.fetch_active_tles(settings.feed_request_timeout_seconds)
+
+
+def _upsert_object(session, tle: ParsedTle, attempted_at: datetime) -> None:
+    record = session.get(SpaceObject, str(tle.norad_id))
+    if record is None:
+        record = SpaceObject(
+            id=str(tle.norad_id),
+            name=tle.name,
+            norad_id=tle.norad_id,
+            object_class=tle.object_class,
+            source=tle.source,
+            operator_name=None,
+            created_at=attempted_at,
+            updated_at=attempted_at,
+        )
+        session.add(record)
+        return
+
+    record.name = tle.name
+    record.norad_id = tle.norad_id
+    record.object_class = tle.object_class
+    record.source = tle.source
+    record.updated_at = attempted_at
+
+
+def _upsert_tle_snapshot(session, tle: ParsedTle, attempted_at: datetime) -> None:
+    epoch = datetime.fromisoformat(tle.epoch)
+    record = session.scalar(
+        select(TleSnapshot).where(
+            TleSnapshot.object_id == str(tle.norad_id),
+            TleSnapshot.source == tle.source,
+            TleSnapshot.epoch == epoch,
+        )
+    )
+    if record is None:
+        session.add(
+            TleSnapshot(
+                object_id=str(tle.norad_id),
+                source=tle.source,
+                line0=tle.line0,
+                line1=tle.line1,
+                line2=tle.line2,
+                epoch=epoch,
+                ingested_at=attempted_at,
+            )
+        )
+        return
+
+    record.line0 = tle.line0
+    record.line1 = tle.line1
+    record.line2 = tle.line2
+    record.ingested_at = attempted_at
+
+
+def _upsert_feed_status(
+    session,
+    *,
+    attempted_at: datetime,
+    ingested_at: datetime | None,
+    is_stale: bool,
+    object_count: int,
+    message: str | None,
+) -> None:
+    settings = get_settings()
+    record = session.get(FeedStatus, "CelesTrak")
+    if record is None:
+        record = FeedStatus(
+            source="CelesTrak",
+            last_ingested_at=ingested_at,
+            last_attempted_at=attempted_at,
+            stale_threshold_minutes=settings.tle_stale_threshold_minutes,
+            is_stale=is_stale,
+            object_count=object_count,
+            message=message,
+        )
+        session.add(record)
+        return
+
+    record.last_ingested_at = ingested_at
+    record.last_attempted_at = attempted_at
+    record.stale_threshold_minutes = settings.tle_stale_threshold_minutes
+    record.is_stale = is_stale
+    record.object_count = object_count
+    record.message = message
 
 
 def ingest_celestrak_feed(raw_text: str | None = None) -> int:
     init_db()
+    attempted_at = datetime.now(UTC)
     settings = get_settings()
-    attempted_at = datetime.now(UTC).isoformat()
 
-    with _connect() as connection:
-        try:
-            text = raw_text if raw_text is not None else fetch_celestrak_tles()
-            parsed = parse_tle_text(text)
-            for tle in parsed:
-                connection.execute(
-                    """
-                    INSERT INTO space_objects (id, name, norad_id, object_class, source, operator_name, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                      name = excluded.name,
-                      norad_id = excluded.norad_id,
-                      object_class = excluded.object_class,
-                      source = excluded.source,
-                      updated_at = excluded.updated_at
-                    """,
-                    (
-                        str(tle.norad_id),
-                        tle.name,
-                        tle.norad_id,
-                        tle.object_class,
-                        tle.source,
-                        attempted_at,
-                        attempted_at,
-                    ),
-                )
-                connection.execute(
-                    """
-                    INSERT INTO tle_snapshots (object_id, source, line0, line1, line2, epoch, ingested_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(object_id, source, epoch) DO UPDATE SET
-                      line0 = excluded.line0,
-                      line1 = excluded.line1,
-                      line2 = excluded.line2,
-                      ingested_at = excluded.ingested_at
-                    """,
-                    (
-                        str(tle.norad_id),
-                        tle.source,
-                        tle.line0,
-                        tle.line1,
-                        tle.line2,
-                        tle.epoch,
-                        attempted_at,
-                    ),
-                )
+    try:
+        text = raw_text if raw_text is not None else fetch_celestrak_tles()
+        parsed = parse_tle_text(text)
+    except Exception as exc:
+        with session_scope(settings.database_url) as session:
+            _upsert_feed_status(
+                session,
+                attempted_at=attempted_at,
+                ingested_at=None,
+                is_stale=True,
+                object_count=0,
+                message=str(exc),
+            )
+        raise
 
-            connection.execute(
-                """
-                INSERT INTO feed_statuses (
-                  source, last_ingested_at, last_attempted_at, stale_threshold_minutes, is_stale, object_count, message
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(source) DO UPDATE SET
-                  last_ingested_at = excluded.last_ingested_at,
-                  last_attempted_at = excluded.last_attempted_at,
-                  stale_threshold_minutes = excluded.stale_threshold_minutes,
-                  is_stale = excluded.is_stale,
-                  object_count = excluded.object_count,
-                  message = excluded.message
-                """,
-                (
-                    "CelesTrak",
-                    attempted_at,
-                    attempted_at,
-                    settings.tle_stale_threshold_minutes,
-                    0,
-                    len(parsed),
-                    None,
+    with session_scope(settings.database_url) as session:
+        for tle in parsed:
+            _upsert_object(session, tle, attempted_at)
+            _upsert_tle_snapshot(session, tle, attempted_at)
+
+        _upsert_feed_status(
+            session,
+            attempted_at=attempted_at,
+            ingested_at=attempted_at,
+            is_stale=False,
+            object_count=len(parsed),
+            message=None,
+        )
+
+    return len(parsed)
+
+
+def propagate_tle(line1: str, line2: str) -> tuple[list[float], list[float]]:
+    try:
+        from sgp4.api import Satrec, jday
+    except ModuleNotFoundError:
+        return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
+
+    satellite = Satrec.twoline2rv(line1, line2)
+    now = datetime.now(UTC)
+    jd, fr = jday(
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
+        now.minute,
+        now.second + (now.microsecond / 1_000_000),
+    )
+    error, position, velocity = satellite.sgp4(jd, fr)
+    if error != 0:
+        return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
+    return [float(value) for value in position], [float(value) for value in velocity]
+
+
+def refresh_current_states() -> int:
+    init_db()
+    settings = get_settings()
+    latest_ingest = (
+        select(TleSnapshot.object_id, func.max(TleSnapshot.ingested_at).label("latest_ingested_at"))
+        .group_by(TleSnapshot.object_id)
+        .subquery()
+    )
+
+    with session_scope(settings.database_url) as session:
+        rows = session.execute(
+            select(TleSnapshot)
+            .join(
+                latest_ingest,
+                and_(
+                    latest_ingest.c.object_id == TleSnapshot.object_id,
+                    latest_ingest.c.latest_ingested_at == TleSnapshot.ingested_at,
                 ),
             )
-            connection.commit()
-            return len(parsed)
-        except Exception as exc:
-            connection.execute(
-                """
-                INSERT INTO feed_statuses (
-                  source, last_ingested_at, last_attempted_at, stale_threshold_minutes, is_stale, object_count, message
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(source) DO UPDATE SET
-                  last_attempted_at = excluded.last_attempted_at,
-                  stale_threshold_minutes = excluded.stale_threshold_minutes,
-                  is_stale = excluded.is_stale,
-                  object_count = excluded.object_count,
-                  message = excluded.message
-                """,
-                (
-                    "CelesTrak",
-                    None,
-                    attempted_at,
-                    settings.tle_stale_threshold_minutes,
-                    1,
-                    0,
-                    str(exc),
-                ),
+            .order_by(TleSnapshot.object_id.asc())
+        ).scalars()
+
+        updated_count = 0
+        propagated_at = datetime.now(UTC)
+        for tle_snapshot in rows:
+            position, velocity = propagate_tle(tle_snapshot.line1, tle_snapshot.line2)
+            state = session.scalar(
+                select(CurrentState).where(CurrentState.object_id == tle_snapshot.object_id)
             )
-            connection.commit()
-            raise
+            if state is None:
+                state = CurrentState(
+                    object_id=tle_snapshot.object_id,
+                    epoch=tle_snapshot.epoch,
+                    propagated_at=propagated_at,
+                    position_x_km=position[0],
+                    position_y_km=position[1],
+                    position_z_km=position[2],
+                    velocity_x_km_s=velocity[0],
+                    velocity_y_km_s=velocity[1],
+                    velocity_z_km_s=velocity[2],
+                )
+                session.add(state)
+            else:
+                state.epoch = tle_snapshot.epoch
+                state.propagated_at = propagated_at
+                state.position_x_km = position[0]
+                state.position_y_km = position[1]
+                state.position_z_km = position[2]
+                state.velocity_x_km_s = velocity[0]
+                state.velocity_y_km_s = velocity[1]
+                state.velocity_z_km_s = velocity[2]
+            updated_count += 1
+
+    return updated_count

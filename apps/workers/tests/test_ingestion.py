@@ -1,10 +1,11 @@
-import sqlite3
 import asyncio
+import sqlite3
 from unittest.mock import patch
 
 from src.core.config import get_settings
-from src.ingestion_backend import parse_tle_text
+from src.ingestion_backend import parse_tle_text, refresh_current_states
 from src.jobs.ingestion import run_ingestion
+from src.jobs.propagation import run_propagation
 
 
 SAMPLE_TLE = """ISS (ZARYA)
@@ -39,9 +40,17 @@ def test_run_ingestion_invokes_backend() -> None:
     ingest.assert_called_once()
 
 
+def test_run_propagation_invokes_backend() -> None:
+    with patch("src.jobs.propagation.refresh_current_states", return_value=1) as propagate:
+        asyncio.run(run_propagation())
+
+    propagate.assert_called_once()
+
+
 def test_ingestion_backend_persists_rows(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "workers.sqlite3"
     monkeypatch.setenv("LOCAL_DATABASE_PATH", str(database_path))
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
     get_settings.cache_clear()
 
     from src.ingestion_backend import ingest_celestrak_feed
@@ -60,5 +69,32 @@ def test_ingestion_backend_persists_rows(tmp_path, monkeypatch) -> None:
         assert object_count == 2
         assert snapshot_count == 2
         assert feed_row == ("CelesTrak", 2, 0)
+    finally:
+        get_settings.cache_clear()
+
+
+def test_propagation_persists_current_states(tmp_path, monkeypatch) -> None:
+    database_path = tmp_path / "workers.sqlite3"
+    monkeypatch.setenv("LOCAL_DATABASE_PATH", str(database_path))
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
+    get_settings.cache_clear()
+
+    from src.ingestion_backend import ingest_celestrak_feed
+
+    try:
+        ingest_celestrak_feed(CLASSIFIED_TLE)
+        updated_count = refresh_current_states()
+
+        with sqlite3.connect(database_path) as connection:
+            state_count = connection.execute("SELECT COUNT(*) FROM current_states").fetchone()[0]
+            sample_state = connection.execute(
+                "SELECT object_id, position_x_km, velocity_x_km_s FROM current_states ORDER BY object_id ASC"
+            ).fetchone()
+
+        assert updated_count == 2
+        assert state_count == 2
+        assert sample_state[0] == "11267"
+        assert isinstance(sample_state[1], float)
+        assert isinstance(sample_state[2], float)
     finally:
         get_settings.cache_clear()

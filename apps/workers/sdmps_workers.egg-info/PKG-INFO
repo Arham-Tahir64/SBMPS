@@ -5,6 +5,10 @@ Summary: SDMPS worker service
 Requires-Python: >=3.12
 Requires-Dist: pydantic>=2.10.4
 Requires-Dist: pydantic-settings>=2.7.0
+Requires-Dist: sdmps-data
+Requires-Dist: sdmps-integrations
 Requires-Dist: redis>=5.2.1
+Requires-Dist: sgp4>=2.24
+Requires-Dist: sqlalchemy>=2.0.36
 Requires-Dist: pytest>=8.3.4
 Requires-Dist: ruff>=0.8.4

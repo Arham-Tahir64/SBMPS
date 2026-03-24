@@ -5,6 +5,7 @@ sdmps_workers.egg-info/dependency_links.txt
 sdmps_workers.egg-info/requires.txt
 sdmps_workers.egg-info/top_level.txt
 src/__init__.py
+src/ingestion_backend.py
 src/main.py
 src/queue.py
 src/core/__init__.py
@@ -16,4 +17,6 @@ src/jobs/ingestion.py
 src/jobs/propagation.py
 src/jobs/risk.py
 src/jobs/simulations.py
+tests/test_bootstrap.py
+tests/test_ingestion.py
 tests/test_jobs_import.py

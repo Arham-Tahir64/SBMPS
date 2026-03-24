@@ -1,19 +1,20 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from sdmps_data import init_database
 
 from src.api.router import api_router
 from src.core.config import get_settings
 from src.core.logging import configure_logging
-from src.db import init_db
 
 
-settings = get_settings()
-configure_logging(settings.log_level)
+configure_logging(get_settings().log_level)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    init_db()
+    settings = get_settings()
+    init_database(settings.database_url)
     yield
 
 

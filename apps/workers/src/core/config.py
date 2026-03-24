@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     log_level: str = Field(default="INFO", alias="API_LOG_LEVEL")
     tle_poll_interval_minutes: int = Field(default=60, alias="TLE_POLL_INTERVAL_MINUTES")
+    database_url: str = Field(
+        default=f"sqlite:///{(REPO_ROOT / 'sdmps.sqlite3').as_posix()}", alias="DATABASE_URL"
+    )
     local_database_path: str = Field(
         default=str(REPO_ROOT / "sdmps.sqlite3"), alias="LOCAL_DATABASE_PATH"
     )

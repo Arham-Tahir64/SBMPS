@@ -8,6 +8,7 @@ dependencies = [
   "httpx>=0.28.1",
   "pydantic>=2.10.4",
   "pydantic-settings>=2.7.0",
+  "sdmps-data",
   "sqlalchemy>=2.0.36",
   "alembic>=1.14.0",
   "redis>=5.2.1",
@@ -31,3 +32,6 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+
+[tool.uv.sources]
+sdmps-data = { path = "../../packages/data", editable = true }

@@ -595,6 +595,7 @@ dependencies = [
     { name = "pytest" },
     { name = "redis" },
     { name = "ruff" },
+    { name = "sdmps-data" },
     { name = "sgp4" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
@@ -611,9 +612,25 @@ requires-dist = [
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "redis", specifier = ">=5.2.1" },
     { name = "ruff", specifier = ">=0.8.4" },
+    { name = "sdmps-data", editable = "../../packages/data" },
     { name = "sgp4", specifier = ">=2.24" },
     { name = "sqlalchemy", specifier = ">=2.0.36" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
+]
+
+[[package]]
+name = "sdmps-data"
+version = "0.1.0"
+source = { editable = "../../packages/data" }
+dependencies = [
+    { name = "alembic" },
+    { name = "sqlalchemy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.14.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.36" },
 ]
 
 [[package]]

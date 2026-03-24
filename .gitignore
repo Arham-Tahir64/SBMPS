@@ -16,5 +16,7 @@ __pycache__
 htmlcov
 *.pyc
 *.pyo
+*.sqlite3
+*.egg-info/
 .idea
 .vscode

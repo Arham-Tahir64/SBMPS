@@ -6,7 +6,11 @@ requires-python = ">=3.12"
 dependencies = [
   "pydantic>=2.10.4",
   "pydantic-settings>=2.7.0",
+  "sdmps-data",
+  "sdmps-integrations",
   "redis>=5.2.1",
+  "sgp4>=2.24",
+  "sqlalchemy>=2.0.36",
   "pytest>=8.3.4",
   "ruff>=0.8.4"
 ]
@@ -24,3 +28,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+
+[tool.uv.sources]
+sdmps-data = { path = "../../packages/data", editable = true }
+sdmps-integrations = { path = "../../packages/integrations", editable = true }

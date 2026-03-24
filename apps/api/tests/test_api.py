@@ -2,6 +2,7 @@ import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
+from sdmps_data import init_database
 
 from src.core.config import get_settings
 from src.ingestion import parse_tle_text
@@ -30,6 +31,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("LOCAL_DATABASE_PATH", str(database_path))
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
     get_settings.cache_clear()
+    init_database(f"sqlite:///{database_path}")
 
     from src.main import app
 
@@ -96,9 +98,11 @@ def test_refresh_upserts_objects_and_tle_snapshots_without_duplicates(
     with sqlite3.connect(database_path) as connection:
         object_count = connection.execute("SELECT COUNT(*) FROM space_objects").fetchone()[0]
         snapshot_count = connection.execute("SELECT COUNT(*) FROM tle_snapshots").fetchone()[0]
+        current_state_count = connection.execute("SELECT COUNT(*) FROM current_states").fetchone()[0]
 
     assert object_count == 2
     assert snapshot_count == 2
+    assert current_state_count == 2
 
 
 def test_refresh_failure_marks_feed_stale(client: TestClient, monkeypatch) -> None:
