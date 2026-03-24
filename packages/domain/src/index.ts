@@ -58,6 +58,15 @@ export type AlertEvent = {
   createdAt: string;
 };
 
+export type DashboardSummary = {
+  epoch: string;
+  trackedObjectCount: number;
+  highRiskConjunctionCount: number;
+  criticalRiskConjunctionCount: number;
+  activeFeedCount: number;
+  staleFeedCount: number;
+};
+
 export type SimulationJobSummary = {
   id: string;
   scenarioName: string;

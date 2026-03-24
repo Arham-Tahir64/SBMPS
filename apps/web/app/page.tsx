@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function HomePage() {
-  redirect("/operations/live");
+  redirect("/dashboard");
 }

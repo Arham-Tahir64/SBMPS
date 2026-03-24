@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from itertools import combinations
-from math import sqrt
+from math import exp, sqrt
 
 from sqlalchemy import and_, delete, func, select
 from sdmps_data import (
@@ -309,13 +308,6 @@ def refresh_current_states() -> int:
     return updated_count
 
 
-def _distance_km(left: CurrentState, right: CurrentState) -> float:
-    delta_x = left.position_x_km - right.position_x_km
-    delta_y = left.position_y_km - right.position_y_km
-    delta_z = left.position_z_km - right.position_z_km
-    return sqrt((delta_x * delta_x) + (delta_y * delta_y) + (delta_z * delta_z))
-
-
 def _relative_velocity_km_s(left: CurrentState, right: CurrentState) -> float:
     delta_x = left.velocity_x_km_s - right.velocity_x_km_s
     delta_y = left.velocity_y_km_s - right.velocity_y_km_s
@@ -323,37 +315,89 @@ def _relative_velocity_km_s(left: CurrentState, right: CurrentState) -> float:
     return sqrt((delta_x * delta_x) + (delta_y * delta_y) + (delta_z * delta_z))
 
 
-def refresh_conjunction_events(max_miss_distance_km: float = 25.0) -> int:
+def refresh_conjunction_events(
+    candidate_radius_km: float = 25.0,
+    persist_threshold_km: float = 5.0,
+) -> int:
+    """Detect close approaches using a KD-tree spatial index.
+
+    Two-pass design:
+      1. KDTree.query_pairs(candidate_radius_km) — O(n log n) candidate filter.
+         Returns all pairs whose ECI positions are within the candidate radius.
+      2. Pairs with miss distance <= persist_threshold_km are persisted as
+         ConjunctionEvent records (REQ-CD-02: default flag threshold 5 km).
+
+    This replaces the previous O(n²) combinations loop and makes 50 k-object
+    catalogs tractable in the 5-minute analysis cycle.
+    """
+    from scipy.spatial import KDTree  # type: ignore[import]
+
     init_db()
     settings = get_settings()
 
     with session_scope(settings.database_url) as session:
         states = list(session.scalars(select(CurrentState).order_by(CurrentState.object_id.asc())))
+
         session.execute(delete(RiskAssessment))
         session.execute(delete(ConjunctionEvent))
 
+        if len(states) < 2:
+            return 0
+
+        # Build position matrix — one row per tracked object.
+        positions = [
+            [s.position_x_km, s.position_y_km, s.position_z_km]
+            for s in states
+        ]
+        tree = KDTree(positions)
+
+        # query_pairs returns a set of (i, j) index pairs where distance <= radius.
+        # This is the O(n log n) candidate filter.
+        candidate_pairs = tree.query_pairs(r=candidate_radius_km)
+        logging.debug(
+            "KDTree candidate pass: %d states → %d pairs within %.1f km",
+            len(states),
+            len(candidate_pairs),
+            candidate_radius_km,
+        )
+
         created_count = 0
-        for left_state, right_state in combinations(states, 2):
-            miss_distance_km = _distance_km(left_state, right_state)
-            if miss_distance_km > max_miss_distance_km:
+        for i, j in candidate_pairs:
+            left_state = states[i]
+            right_state = states[j]
+
+            dx = left_state.position_x_km - right_state.position_x_km
+            dy = left_state.position_y_km - right_state.position_y_km
+            dz = left_state.position_z_km - right_state.position_z_km
+            miss_distance_km = sqrt(dx * dx + dy * dy + dz * dz)
+
+            # Only persist events that cross the configured flag threshold (REQ-CD-02).
+            if miss_distance_km > persist_threshold_km:
                 continue
 
             primary_object_id, secondary_object_id = sorted(
                 [left_state.object_id, right_state.object_id],
-                key=lambda object_id: int(object_id),
+                key=lambda oid: int(oid),
             )
             tca = left_state.epoch if left_state.epoch >= right_state.epoch else right_state.epoch
-            event = ConjunctionEvent(
-                id=f"{primary_object_id}-{secondary_object_id}-{tca.isoformat()}",
-                primary_object_id=primary_object_id,
-                secondary_object_id=secondary_object_id,
-                tca=tca,
-                miss_distance_km=miss_distance_km,
-                relative_velocity_km_s=_relative_velocity_km_s(left_state, right_state),
+            session.add(
+                ConjunctionEvent(
+                    id=f"{primary_object_id}-{secondary_object_id}-{tca.isoformat()}",
+                    primary_object_id=primary_object_id,
+                    secondary_object_id=secondary_object_id,
+                    tca=tca,
+                    miss_distance_km=miss_distance_km,
+                    relative_velocity_km_s=_relative_velocity_km_s(left_state, right_state),
+                )
             )
-            session.add(event)
             created_count += 1
 
+    logging.info(
+        "Conjunction detection complete: %d candidate pairs → %d events persisted (threshold %.1f km)",
+        len(candidate_pairs),
+        created_count,
+        persist_threshold_km,
+    )
     return created_count
 
 
@@ -404,6 +448,29 @@ def synthesize_alerts() -> dict[str, int]:
     return counts
 
 
+_PC_HBR_KM: float = 0.010  # combined hard-body radius: 10 m
+_PC_SIGMA_KM: float = 0.200  # assumed 1-sigma position uncertainty: 200 m
+
+
+def _simplified_pc(miss_distance_km: float) -> float:
+    """Chan-style simplified Pc without covariance matrices.
+
+    Approximates the probability of collision as the Gaussian probability that
+    the miss vector falls within the combined hard-body radius, assuming isotropic
+    position uncertainty σ in the conjunction plane.
+
+        Pc ≈ (HBR² / (2σ²)) · exp(−miss² / (2σ²))
+
+    Constants:
+        HBR = 0.010 km  (10 m combined hard-body radius)
+        σ   = 0.200 km  (200 m assumed 1-sigma position uncertainty)
+    """
+    sigma_sq = _PC_SIGMA_KM * _PC_SIGMA_KM
+    return (_PC_HBR_KM * _PC_HBR_KM / (2.0 * sigma_sq)) * exp(
+        -(miss_distance_km * miss_distance_km) / (2.0 * sigma_sq)
+    )
+
+
 def _risk_tier_for_miss_distance(miss_distance_km: float) -> str:
     if miss_distance_km < 1:
         return "critical"
@@ -429,8 +496,8 @@ def refresh_risk_assessments() -> int:
                 RiskAssessment(
                     conjunction_event_id=event.id,
                     risk_tier=_risk_tier_for_miss_distance(event.miss_distance_km),
-                    pc_value=None,
-                    methodology="estimated",
+                    pc_value=_simplified_pc(event.miss_distance_km),
+                    methodology="chan-simplified",
                     assessed_at=assessed_at,
                 )
             )

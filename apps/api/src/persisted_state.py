@@ -388,6 +388,8 @@ def list_altitude_heatmap_bins() -> list[HeatmapBin]:
             )
         )
 
+    return bins
+
 
 def get_object_trajectory(
     object_id: str,
@@ -448,4 +450,3 @@ def get_object_trajectory(
         )
 
     return ObjectTrajectory(objectId=object_id, stepSeconds=step_seconds, points=points)
-    return bins

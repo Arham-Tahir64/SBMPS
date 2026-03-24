@@ -2,12 +2,14 @@ import type {
   AlertEvent,
   ConjunctionEventDetail,
   ConjunctionEventSummary,
+  DashboardSummary,
   SimulationJobSummary,
   TrackedObjectDetail,
   TrackedObjectSummary
 } from "@sdmps/domain";
 
 import { listAlerts } from "./endpoints/alerts";
+import { getDashboardSummary } from "./endpoints/dashboard";
 import { getConjunction, listConjunctions } from "./endpoints/conjunctions";
 import { getFeedStatus } from "./endpoints/feeds";
 import { getLiveSnapshot, type LiveSnapshot } from "./endpoints/live";
@@ -37,7 +39,8 @@ export const queryKeys = {
   conjunctionDetail: (id: string) => ["conjunctions", id] as const,
   simulations: ["simulations"] as const,
   feeds: ["feeds"] as const,
-  alerts: ["alerts"] as const
+  alerts: ["alerts"] as const,
+  dashboard: ["dashboard"] as const
 };
 
 export function isApiBaseUrlConfigured(): boolean {
@@ -92,4 +95,15 @@ export async function getFeedStatusWithFallback() {
 
 export async function getAlertsWithFallback(): Promise<QueryEnvelope<AlertEvent[]>> {
   return withFallback(listAlerts, sampleAlerts);
+}
+
+export async function getDashboardSummaryWithFallback(): Promise<QueryEnvelope<DashboardSummary>> {
+  return withFallback(getDashboardSummary, {
+    epoch: new Date().toISOString(),
+    trackedObjectCount: 3,
+    highRiskConjunctionCount: 1,
+    criticalRiskConjunctionCount: 0,
+    activeFeedCount: 1,
+    staleFeedCount: 0,
+  });
 }

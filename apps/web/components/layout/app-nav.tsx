@@ -74,7 +74,19 @@ function IconSettings() {
   );
 }
 
+function IconGrid() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
 const NAV_ENTRIES: NavEntry[] = [
+  { label: "Dashboard", href: "/dashboard", icon: <IconGrid /> },
   { label: "Live Ops", href: "/operations/live", icon: <IconRadar /> },
   { label: "Conjunctions", href: "/conjunctions", icon: <IconLink /> },
   { label: "Objects", href: "/objects", icon: <IconSatellite /> },
@@ -264,10 +276,10 @@ export function AppNav() {
           {NAV_ENTRIES.map((entry) => {
             const isActive =
               entry.href === "/operations/live"
-                ? pathname === "/" || pathname.startsWith("/operations")
-                : pathname.startsWith(
-                    entry.href === "/settings/feeds" ? "/settings" : entry.href
-                  );
+                ? pathname.startsWith("/operations")
+                : entry.href === "/settings/feeds"
+                ? pathname.startsWith("/settings")
+                : pathname.startsWith(entry.href);
 
             return (
               <li key={entry.href}>

@@ -13,7 +13,8 @@ const emptyLiveSnapshot = {
 export function useLiveSnapshot() {
   const query = useQuery({
     queryKey: queryKeys.live,
-    queryFn: getLiveSnapshotWithFallback
+    queryFn: getLiveSnapshotWithFallback,
+    refetchInterval: 30_000,
   });
 
   return {

@@ -7,6 +7,7 @@ import { useConjunctionDetail } from "../../../lib/queries/use-conjunction-detai
 import { useFeedRefresh } from "../../../lib/queries/use-feed-refresh";
 import { useLiveSnapshot } from "../../../lib/queries/use-live-snapshot";
 import { useObjectDetail } from "../../../lib/queries/use-object-detail";
+import { useOperationsEvents } from "../../../lib/queries/use-operations-events";
 import { useOperationsStore } from "../../../store/operations-store";
 import { AlertInbox } from "../../../components/alerts/alert-inbox";
 import { GlobeViewport } from "../../../components/globe/globe-viewport";
@@ -17,6 +18,7 @@ import { ObjectInspector } from "../../../components/panels/object-inspector";
 
 export function LiveOperationsClient() {
   const { data, error, isLoading, isFallback } = useLiveSnapshot();
+  const { connectionState } = useOperationsEvents();
   const apiConfigured = isApiBaseUrlConfigured();
   const refreshFeeds = useFeedRefresh();
   const {
@@ -79,7 +81,7 @@ export function LiveOperationsClient() {
   return (
     <OperatorShell
       title="Live Operations"
-      subtitle={`${data.objects.length} objects · ${data.conjunctions.length} conjunctions · ${activeAlertCount} active alerts · ${data.feeds.length} feeds${isFallback ? " · fallback data" : " · api data"}${isLoading ? " · loading" : ""}${!isLoading && data.objects.length === 0 && !isFallback ? " · awaiting persisted state" : ""}`}
+      subtitle={`${data.objects.length} objects · ${data.conjunctions.length} conjunctions · ${activeAlertCount} active alerts · ${data.feeds.length} feeds${isFallback ? " · fallback" : connectionState === "open" ? " · live" : " · polling"}${isLoading ? " · loading" : ""}${!isLoading && data.objects.length === 0 && !isFallback ? " · awaiting persisted state" : ""}`}
       leftPanel={
         <FilterPanel
           filters={sampleFilters}
