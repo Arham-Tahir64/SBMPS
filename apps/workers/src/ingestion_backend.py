@@ -357,6 +357,53 @@ def refresh_conjunction_events(max_miss_distance_km: float = 25.0) -> int:
     return created_count
 
 
+def synthesize_alerts() -> dict[str, int]:
+    """Scan current risk assessments and feed statuses and emit structured log alerts.
+
+    Returns a summary of how many alerts of each kind were emitted. This is the
+    hook point for future webhook / email delivery — replace the logging calls
+    with outbound HTTP requests when those integrations are ready.
+    """
+    init_db()
+    settings = get_settings()
+    counts: dict[str, int] = {"conjunction": 0, "feed_stale": 0}
+
+    with session_scope(settings.database_url) as session:
+        high_risk_rows = session.execute(
+            select(RiskAssessment, ConjunctionEvent)
+            .join(ConjunctionEvent, RiskAssessment.conjunction_event_id == ConjunctionEvent.id)
+            .where(RiskAssessment.risk_tier.in_(["high", "critical"]))
+            .order_by(RiskAssessment.assessed_at.desc())
+        ).all()
+
+        for assessment, event in high_risk_rows:
+            level = logging.CRITICAL if assessment.risk_tier == "critical" else logging.WARNING
+            logging.log(
+                level,
+                "CONJUNCTION ALERT [%s] event=%s miss_distance=%.3f km relative_velocity=%.3f km/s tca=%s",
+                assessment.risk_tier.upper(),
+                event.id,
+                event.miss_distance_km,
+                event.relative_velocity_km_s,
+                event.tca.isoformat(),
+            )
+            counts["conjunction"] += 1
+
+        stale_feeds = list(session.scalars(select(FeedStatus).where(FeedStatus.is_stale == True)))  # noqa: E712
+
+        for feed in stale_feeds:
+            logging.warning(
+                "FEED ALERT [feed-stale] source=%s last_ingested=%s threshold_minutes=%d message=%s",
+                feed.source,
+                feed.last_ingested_at,
+                feed.stale_threshold_minutes,
+                feed.message or "none",
+            )
+            counts["feed_stale"] += 1
+
+    return counts
+
+
 def _risk_tier_for_miss_distance(miss_distance_km: float) -> str:
     if miss_distance_km < 1:
         return "critical"

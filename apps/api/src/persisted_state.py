@@ -224,6 +224,7 @@ def get_conjunction(conjunction_id: str) -> ConjunctionEventDetail | None:
 
 def list_alerts() -> list[AlertEvent]:
     alerts: list[AlertEvent] = []
+
     for conjunction in list_conjunctions():
         if conjunction.riskTier not in {"high", "critical"}:
             continue
@@ -239,6 +240,24 @@ def list_alerts() -> list[AlertEvent]:
                 createdAt=conjunction.tca,
             )
         )
+
+    for feed in list_feed_statuses():
+        if not feed.isStale:
+            continue
+        last_seen = feed.lastIngestedAt or datetime.now(UTC).isoformat()
+        alerts.append(
+            AlertEvent(
+                id=f"feed-stale-{feed.source.lower()}",
+                kind="feed-stale",
+                severity="medium",
+                message=(
+                    f"{feed.source} feed is stale (threshold: {feed.staleThresholdMinutes} min). "
+                    + (feed.message if feed.message else f"Last ingested: {last_seen}.")
+                ),
+                createdAt=last_seen,
+            )
+        )
+
     return alerts
 
 
