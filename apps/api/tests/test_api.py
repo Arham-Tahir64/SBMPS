@@ -1,9 +1,9 @@
 import sqlite3
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sdmps_data import ConjunctionEvent, RiskAssessment, init_database, session_scope
+from sdmps_data import ConjunctionEvent, RiskAssessment, TleSnapshot, init_database, session_scope
 
 from src.core.config import get_settings
 from src.ingestion import parse_tle_text
@@ -213,6 +213,40 @@ def test_heatmap_uses_persisted_current_state_and_conjunctions(client: TestClien
     assert len(bins) == 18
     assert any(item["density"] > 0 for item in bins)
     assert any(item["riskConcentration"] > 0 for item in bins)
+
+
+def test_latest_snapshot_suppresses_stale_states_and_sets_epoch(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr("src.ingestion.fetch_celestrak_tles", lambda: SAMPLE_TLE)
+    client.post("/v1/feeds/refresh")
+
+    future_snapshot_epoch = datetime(2026, 3, 25, 2, 0, tzinfo=UTC)
+    future_ingest_time = future_snapshot_epoch + timedelta(minutes=5)
+    settings = get_settings()
+    with session_scope(settings.database_url) as session:
+        session.add(
+            TleSnapshot(
+                object_id="25544",
+                source="CelesTrak",
+                line0="ISS (ZARYA)",
+                line1="1 25544U 98067A   26085.08333333  .00016717  00000+0  10270-3 0  9991",
+                line2="2 25544  51.6393 137.0667 0005237  56.2766  85.4781 15.50051241442793",
+                epoch=future_snapshot_epoch,
+                ingested_at=future_ingest_time,
+            )
+        )
+
+    objects = client.get("/v1/objects").json()
+    iss = next(item for item in objects if item["id"] == "25544")
+    assert iss["epoch"].startswith("2026-03-25T02:00:00")
+    assert iss["positionKm"] == [0.0, 0.0, 0.0]
+
+    live = client.get("/v1/live/snapshot").json()
+    dashboard = client.get("/v1/dashboard/summary").json()
+    assert live["epoch"].startswith("2026-03-25T02:00:00")
+    assert dashboard["epoch"].startswith("2026-03-25T02:00:00")
+
+    bins = client.get("/v1/heatmaps/altitude").json()
+    assert pytest.approx(sum(item["density"] for item in bins), rel=1e-6) == 1.0
 
 
 def test_operations_events_stream(client: TestClient) -> None:

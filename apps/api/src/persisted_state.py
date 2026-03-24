@@ -23,6 +23,16 @@ from src.schemas.object import FeedStatus, TrackedObjectDetail
 from src.schemas.operations import OperationsEvent
 
 
+def _resolve_current_state(tle_snapshot: TleSnapshot, current_state: CurrentState | None) -> CurrentState | None:
+    if current_state is None:
+        return None
+
+    if current_state.propagated_at < tle_snapshot.ingested_at:
+        return None
+
+    return current_state
+
+
 def list_feed_statuses() -> list[FeedStatus]:
     settings = get_settings()
     with session_scope(settings.database_url) as session:
@@ -79,7 +89,7 @@ def list_persisted_objects() -> list[TrackedObjectDetail]:
     for row in _latest_rows():
         space_object = row["space_object"]
         tle_snapshot = row["tle_snapshot"]
-        current_state = row["current_state"]
+        current_state = _resolve_current_state(tle_snapshot, row["current_state"])
         position = [
             current_state.position_x_km if current_state is not None else 0.0,
             current_state.position_y_km if current_state is not None else 0.0,
@@ -97,7 +107,11 @@ def list_persisted_objects() -> list[TrackedObjectDetail]:
                 noradId=space_object.norad_id,
                 objectClass=space_object.object_class,
                 riskTier="low",
-                epoch=tle_snapshot.epoch.isoformat(),
+                epoch=(
+                    current_state.epoch.isoformat()
+                    if current_state is not None
+                    else tle_snapshot.epoch.isoformat()
+                ),
                 positionKm=position,
                 velocityKmPerSecond=velocity,
                 operatorName=space_object.operator_name,
@@ -112,6 +126,27 @@ def get_persisted_object(object_id: str) -> TrackedObjectDetail | None:
         if item.id == object_id:
             return item
     return None
+
+
+def get_live_epoch() -> str:
+    candidate_epochs: list[datetime] = []
+
+    for row in _latest_rows():
+        tle_snapshot = row["tle_snapshot"]
+        current_state = _resolve_current_state(tle_snapshot, row["current_state"])
+        candidate_epochs.append(tle_snapshot.epoch)
+        if current_state is not None:
+            candidate_epochs.append(current_state.epoch)
+
+    if candidate_epochs:
+        return max(candidate_epochs).isoformat()
+
+    feeds = list_feed_statuses()
+    if feeds:
+        timestamps = [datetime.fromisoformat(feed.lastIngestedAt) for feed in feeds]
+        return max(timestamps).isoformat()
+
+    return datetime.now(UTC).isoformat()
 
 
 def _conjunction_rows() -> list[dict[str, object]]:
@@ -262,7 +297,36 @@ def get_dashboard_counts() -> dict[str, int]:
 
 
 def list_altitude_heatmap_bins() -> list[HeatmapBin]:
-    objects = list_persisted_objects()
+    objects: list[TrackedObjectDetail] = []
+    for row in _latest_rows():
+        tle_snapshot = row["tle_snapshot"]
+        current_state = _resolve_current_state(tle_snapshot, row["current_state"])
+        if current_state is None:
+            continue
+        space_object = row["space_object"]
+        objects.append(
+            TrackedObjectDetail(
+                id=space_object.id,
+                name=space_object.name,
+                noradId=space_object.norad_id,
+                objectClass=space_object.object_class,
+                riskTier="low",
+                epoch=current_state.epoch.isoformat(),
+                positionKm=[
+                    current_state.position_x_km,
+                    current_state.position_y_km,
+                    current_state.position_z_km,
+                ],
+                velocityKmPerSecond=[
+                    current_state.velocity_x_km_s,
+                    current_state.velocity_y_km_s,
+                    current_state.velocity_z_km_s,
+                ],
+                operatorName=space_object.operator_name,
+                source=space_object.source,
+            )
+        )
+
     conjunctions = list_conjunctions()
     total_objects = len(objects)
     total_conjunctions = len(conjunctions)
