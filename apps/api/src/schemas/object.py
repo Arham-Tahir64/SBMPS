@@ -41,3 +41,14 @@ class FeedStatus(BaseModel):
     isStale: bool
     objectCount: int | None = None
     message: str | None = None
+
+
+class TrajectoryPoint(BaseModel):
+    t: str  # ISO 8601 UTC timestamp for this sample
+    positionKm: list[float]  # [x, y, z] ECI frame
+
+
+class ObjectTrajectory(BaseModel):
+    objectId: str
+    stepSeconds: int
+    points: list[TrajectoryPoint]

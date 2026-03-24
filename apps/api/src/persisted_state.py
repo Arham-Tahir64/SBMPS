@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from math import sqrt
 
 from sqlalchemy import and_, func, select
@@ -19,7 +19,7 @@ from src.schemas.alert import AlertEvent
 from src.schemas.conjunction import ConjunctionEventDetail, ConjunctionEventSummary
 from src.core.config import get_settings
 from src.schemas.heatmap import HeatmapBin
-from src.schemas.object import FeedStatus, TrackedObjectDetail
+from src.schemas.object import FeedStatus, ObjectTrajectory, TrackedObjectDetail, TrajectoryPoint
 from src.schemas.operations import OperationsEvent
 
 
@@ -387,4 +387,65 @@ def list_altitude_heatmap_bins() -> list[HeatmapBin]:
                 ),
             )
         )
+
+
+def get_object_trajectory(
+    object_id: str,
+    minutes: int = 180,
+    step_seconds: int = 60,
+) -> ObjectTrajectory | None:
+    """Propagate an object's orbit forward using SGP4 and return sampled positions.
+
+    Fetches the latest TLE from the DB, then steps through time at `step_seconds`
+    intervals for `minutes` total, returning ECI position vectors for each sample.
+    Points where SGP4 reports an error (e.g. decayed orbit) are silently skipped.
+    """
+    try:
+        from sgp4.api import Satrec, jday  # type: ignore[import]
+    except ModuleNotFoundError:
+        return None
+
+    settings = get_settings()
+    latest_ingest = (
+        select(TleSnapshot.object_id, func.max(TleSnapshot.ingested_at).label("latest_ingested_at"))
+        .group_by(TleSnapshot.object_id)
+        .subquery()
+    )
+
+    with session_scope(settings.database_url) as session:
+        tle = session.scalar(
+            select(TleSnapshot)
+            .join(
+                latest_ingest,
+                and_(
+                    latest_ingest.c.object_id == TleSnapshot.object_id,
+                    latest_ingest.c.latest_ingested_at == TleSnapshot.ingested_at,
+                ),
+            )
+            .where(TleSnapshot.object_id == object_id)
+        )
+        if tle is None:
+            return None
+
+        line1, line2 = tle.line1, tle.line2
+
+    satellite = Satrec.twoline2rv(line1, line2)
+    start = datetime.now(UTC)
+    total_steps = (minutes * 60) // step_seconds
+    points: list[TrajectoryPoint] = []
+
+    for i in range(total_steps):
+        t = start + timedelta(seconds=i * step_seconds)
+        jd, fr = jday(t.year, t.month, t.day, t.hour, t.minute, t.second + t.microsecond / 1_000_000)
+        error, position, _ = satellite.sgp4(jd, fr)
+        if error != 0:
+            continue
+        points.append(
+            TrajectoryPoint(
+                t=t.isoformat(),
+                positionKm=[float(position[0]), float(position[1]), float(position[2])],
+            )
+        )
+
+    return ObjectTrajectory(objectId=object_id, stepSeconds=step_seconds, points=points)
     return bins
