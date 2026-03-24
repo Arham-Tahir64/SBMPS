@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import type { TrackedObjectSummary } from "@sdmps/domain";
-import { riskTierColor, toScenePosition } from "@sdmps/scene";
+import { objectClassColor, riskTierColor, toScenePosition } from "@sdmps/scene";
 
 const MAX_OBJECTS = 2000;
 const INSTANCE_RADIUS = 0.045;
@@ -46,7 +46,7 @@ export function ObjectLayer({ objects, selectedObjectId, onSelectObject }: Objec
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
 
-      color.set(riskTierColor(object.riskTier));
+      color.set(objectClassColor(object.objectClass));
       mesh.setColorAt(i, color);
     }
 
@@ -87,9 +87,9 @@ export function ObjectLayer({ objects, selectedObjectId, onSelectObject }: Objec
         <mesh position={toScenePosition(selectedObject.positionKm)}>
           <sphereGeometry args={[SELECTED_RADIUS, 16, 16]} />
           <meshStandardMaterial
-            color={riskTierColor(selectedObject.riskTier)}
-            emissive={riskTierColor(selectedObject.riskTier)}
-            emissiveIntensity={0.6}
+            color={objectClassColor(selectedObject.objectClass)}
+            emissive={objectClassColor(selectedObject.objectClass)}
+            emissiveIntensity={0.9}
           />
         </mesh>
       ) : null}

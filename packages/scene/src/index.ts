@@ -20,6 +20,18 @@ export function riskTierColor(riskTier: RiskTier): string {
   }
 }
 
+export function objectClassColor(objectClass: string): string {
+  switch (objectClass) {
+    case "active-satellite":
+      return "#53c2ff";
+    case "rocket-body":
+      return "#ff9d42";
+    case "debris-fragment":
+    default:
+      return "#c084fc";
+  }
+}
+
 export type PlaybackClock = {
   speed: number;
   paused: boolean;

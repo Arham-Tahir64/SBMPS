@@ -6,7 +6,7 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { ConjunctionEventSummary, TrackedObjectSummary } from "@sdmps/domain";
 import type { LayerVisibility } from "../../store/operations-store";
-import { riskTierColor, toScenePosition } from "@sdmps/scene";
+import { objectClassColor, riskTierColor, toScenePosition } from "@sdmps/scene";
 import { ConjunctionLayer } from "./layers/conjunction-layer";
 import { HeatmapLayer } from "./layers/heatmap-layer";
 import { ObjectLayer } from "./layers/object-layer";
@@ -142,6 +142,64 @@ function EarthSphere() {
 }
 
 // ---------------------------------------------------------------------------
+// GlobeLegend — HTML overlay showing object class colors
+// ---------------------------------------------------------------------------
+
+const LEGEND_ENTRIES = [
+  { label: "Active Satellite", color: objectClassColor("active-satellite") },
+  { label: "Rocket Body",      color: objectClassColor("rocket-body") },
+  { label: "Debris Fragment",  color: objectClassColor("debris-fragment") },
+] as const;
+
+const CONJUNCTION_ENTRIES = [
+  { label: "Critical",  color: riskTierColor("critical") },
+  { label: "High Risk", color: riskTierColor("high") },
+] as const;
+
+function GlobeLegend() {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: 14,
+        right: 14,
+        background: "rgba(4, 13, 26, 0.82)",
+        border: "1px solid rgba(121, 178, 255, 0.14)",
+        borderRadius: 10,
+        padding: "10px 14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        backdropFilter: "blur(6px)",
+        pointerEvents: "none",
+        zIndex: 10,
+        minWidth: 150,
+      }}
+    >
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(121,178,255,0.5)", marginBottom: 2 }}>
+        Object Class
+      </div>
+      {LEGEND_ENTRIES.map(({ label, color }) => (
+        <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0, boxShadow: `0 0 5px ${color}` }} />
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>{label}</span>
+        </div>
+      ))}
+      <div style={{ height: 1, background: "rgba(121,178,255,0.12)", margin: "2px 0" }} />
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(121,178,255,0.5)", marginBottom: 2 }}>
+        Conjunction Risk
+      </div>
+      {CONJUNCTION_ENTRIES.map(({ label, color }) => (
+        <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 9, height: 9, borderRadius: 2, background: "transparent", border: `2px solid ${color}`, flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // GlobeViewport
 // ---------------------------------------------------------------------------
 
@@ -167,7 +225,7 @@ export function GlobeViewport({
   const selectedObject = objects.find((item) => item.id === selectedObjectId);
 
   return (
-    <div style={{ height: 560, borderRadius: 20, overflow: "hidden" }}>
+    <div style={{ height: 560, borderRadius: 20, overflow: "hidden", position: "relative" }}>
       <Canvas camera={{ position: [0, 2, 7], fov: 45 }}>
         <ambientLight intensity={1.2} />
         <pointLight position={[8, 8, 8]} intensity={120} />
@@ -195,6 +253,7 @@ export function GlobeViewport({
           />
         ) : null}
       </Canvas>
+      <GlobeLegend />
     </div>
   );
 }
