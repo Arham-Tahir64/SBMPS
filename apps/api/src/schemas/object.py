@@ -39,3 +39,5 @@ class FeedStatus(BaseModel):
     lastIngestedAt: str
     staleThresholdMinutes: int
     isStale: bool
+    objectCount: int | None = None
+    message: str | None = None

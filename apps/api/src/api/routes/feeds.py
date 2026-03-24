@@ -11,3 +11,8 @@ router = APIRouter()
 @router.get("/status", response_model=list[FeedStatus])
 def status(service: FeedService = Depends(get_feed_service)) -> list[FeedStatus]:
     return service.list_feed_statuses()
+
+
+@router.post("/refresh", response_model=list[FeedStatus])
+def refresh(service: FeedService = Depends(get_feed_service)) -> list[FeedStatus]:
+    return service.refresh()

@@ -1,4 +1,3 @@
-from src.data.store import store
 from src.services.conjunctions import ConjunctionService
 from src.services.dashboard import DashboardService
 from src.services.feeds import FeedService
@@ -8,24 +7,24 @@ from src.services.operations import OperationsService
 
 
 def get_object_service() -> ObjectService:
-    return ObjectService(store)
+    return ObjectService()
 
 
 def get_conjunction_service() -> ConjunctionService:
-    return ConjunctionService(store)
+    return ConjunctionService()
 
 
 def get_feed_service() -> FeedService:
-    return FeedService(store)
+    return FeedService()
 
 
 def get_live_service() -> LiveService:
-    return LiveService(store)
+    return LiveService()
 
 
 def get_dashboard_service() -> DashboardService:
-    return DashboardService(store)
+    return DashboardService()
 
 
 def get_operations_service() -> OperationsService:
-    return OperationsService(store)
+    return OperationsService()
