@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { ConjunctionEventSummary, TrackedObjectSummary } from "@sdmps/domain";
 import type { LayerVisibility } from "../../store/operations-store";
 import { objectClassColor, riskTierColor, toScenePosition } from "@sdmps/scene";
+import { useAltitudeHeatmap } from "../../lib/queries/use-altitude-heatmap";
 import { ConjunctionLayer } from "./layers/conjunction-layer";
 import { HeatmapLayer } from "./layers/heatmap-layer";
 import { ObjectLayer } from "./layers/object-layer";
@@ -223,6 +224,7 @@ export function GlobeViewport({
   onSelectConjunction
 }: GlobeViewportProps) {
   const selectedObject = objects.find((item) => item.id === selectedObjectId);
+  const { data: heatmapBins } = useAltitudeHeatmap();
 
   return (
     <div style={{ height: 560, borderRadius: 20, overflow: "hidden", position: "relative" }}>
@@ -245,7 +247,7 @@ export function GlobeViewport({
             onSelectConjunction={onSelectConjunction}
           />
         ) : null}
-        {layerVisibility.heatmap ? <HeatmapLayer /> : null}
+        {layerVisibility.heatmap ? <HeatmapLayer bins={heatmapBins} /> : null}
         {layerVisibility.orbit && selectedObject ? (
           <OrbitLayer
             points={[toScenePosition(selectedObject.positionKm)]}

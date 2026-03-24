@@ -3,6 +3,7 @@ import type {
   ConjunctionEventDetail,
   ConjunctionEventSummary,
   DashboardSummary,
+  HeatmapBin,
   SimulationJobSummary,
   TrackedObjectDetail,
   TrackedObjectSummary
@@ -10,6 +11,7 @@ import type {
 
 import { listAlerts } from "./endpoints/alerts";
 import { getDashboardSummary } from "./endpoints/dashboard";
+import { getAltitudeHeatmap } from "./endpoints/heatmaps";
 import { getConjunction, listConjunctions } from "./endpoints/conjunctions";
 import { getFeedStatus } from "./endpoints/feeds";
 import { getLiveSnapshot, type LiveSnapshot } from "./endpoints/live";
@@ -40,7 +42,8 @@ export const queryKeys = {
   simulations: ["simulations"] as const,
   feeds: ["feeds"] as const,
   alerts: ["alerts"] as const,
-  dashboard: ["dashboard"] as const
+  dashboard: ["dashboard"] as const,
+  heatmap: ["heatmap"] as const,
 };
 
 export function isApiBaseUrlConfigured(): boolean {
@@ -95,6 +98,14 @@ export async function getFeedStatusWithFallback() {
 
 export async function getAlertsWithFallback(): Promise<QueryEnvelope<AlertEvent[]>> {
   return withFallback(listAlerts, sampleAlerts);
+}
+
+export async function getAltitudeHeatmapWithFallback(): Promise<QueryEnvelope<HeatmapBin[]>> {
+  return withFallback(getAltitudeHeatmap, [
+    { bandStartKm: 400, bandEndKm: 500, density: 0.44, riskConcentration: 0.45 },
+    { bandStartKm: 500, bandEndKm: 600, density: 0.12, riskConcentration: 0.1 },
+    { bandStartKm: 700, bandEndKm: 800, density: 0.08, riskConcentration: 0.05 },
+  ]);
 }
 
 export async function getDashboardSummaryWithFallback(): Promise<QueryEnvelope<DashboardSummary>> {
