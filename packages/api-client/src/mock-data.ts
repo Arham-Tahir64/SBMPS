@@ -1,4 +1,5 @@
 import type {
+  AlertEvent,
   ConjunctionEventDetail,
   ConjunctionEventSummary,
   FeedStatus,
@@ -115,4 +116,28 @@ export const sampleFilters: FilterDefinition[] = [
   { id: "class", label: "Object Class", options: ["active-satellite", "rocket-body", "debris-fragment"] },
   { id: "risk", label: "Risk Tier", options: ["low", "medium", "high", "critical"] },
   { id: "source", label: "Feed Source", options: ["CelesTrak", "Space-Track"] }
+];
+
+export const sampleAlerts: AlertEvent[] = [
+  {
+    id: "conj-001-002-2026-03-24T06:00:00Z",
+    kind: "conjunction",
+    severity: "critical",
+    message: "ISS (ZARYA) and SL-16 R/B are projected within 0.42 km.",
+    createdAt: "2026-03-24T06:00:00Z"
+  },
+  {
+    id: "conj-003-004-2026-03-24T09:30:00Z",
+    kind: "conjunction",
+    severity: "high",
+    message: "STARLINK-1234 and COSMOS 2251 DEB are projected within 3.17 km.",
+    createdAt: "2026-03-24T09:30:00Z"
+  },
+  {
+    id: "feed-stale-celestrak",
+    kind: "feed-stale",
+    severity: "medium",
+    message: "CelesTrak feed is stale (threshold: 240 min). Last ingested: 2026-03-24T02:00:00Z.",
+    createdAt: "2026-03-24T02:00:00Z"
+  }
 ];

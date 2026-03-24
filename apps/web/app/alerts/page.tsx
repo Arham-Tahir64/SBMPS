@@ -1,5 +1,6 @@
-import { sampleConjunctions } from "@sdmps/api-client";
-import { AlertInbox } from "../../components/alerts/alert-inbox";
+import { Card } from "@sdmps/ui";
+
+import { AlertsPageClient } from "./alerts-page-client";
 
 export const metadata = {
   title: "Alerts | SDMPS",
@@ -9,7 +10,9 @@ export const metadata = {
 export default function AlertsPage() {
   return (
     <main style={{ padding: 24 }}>
-      <AlertInbox alerts={sampleConjunctions} />
+      <Card title="Alerts" description="Active conjunction, feed-stale, and simulation alerts">
+        <AlertsPageClient />
+      </Card>
     </main>
   );
 }

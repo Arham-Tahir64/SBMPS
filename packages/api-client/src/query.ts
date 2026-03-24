@@ -1,4 +1,5 @@
 import type {
+  AlertEvent,
   ConjunctionEventDetail,
   ConjunctionEventSummary,
   SimulationJobSummary,
@@ -6,6 +7,7 @@ import type {
   TrackedObjectSummary
 } from "@sdmps/domain";
 
+import { listAlerts } from "./endpoints/alerts";
 import { getConjunction, listConjunctions } from "./endpoints/conjunctions";
 import { getFeedStatus } from "./endpoints/feeds";
 import { getLiveSnapshot, type LiveSnapshot } from "./endpoints/live";
@@ -14,6 +16,7 @@ import { listSimulations } from "./endpoints/simulations";
 import {
   getSampleConjunctionDetail,
   getSampleObjectDetail,
+  sampleAlerts,
   sampleConjunctions,
   sampleFeedStatus,
   sampleLiveSnapshot,
@@ -33,7 +36,8 @@ export const queryKeys = {
   conjunctions: ["conjunctions"] as const,
   conjunctionDetail: (id: string) => ["conjunctions", id] as const,
   simulations: ["simulations"] as const,
-  feeds: ["feeds"] as const
+  feeds: ["feeds"] as const,
+  alerts: ["alerts"] as const
 };
 
 export function isApiBaseUrlConfigured(): boolean {
@@ -84,4 +88,8 @@ export async function getSimulationsWithFallback(): Promise<QueryEnvelope<Simula
 
 export async function getFeedStatusWithFallback() {
   return withFallback(getFeedStatus, sampleFeedStatus);
+}
+
+export async function getAlertsWithFallback(): Promise<QueryEnvelope<AlertEvent[]>> {
+  return withFallback(listAlerts, sampleAlerts);
 }
