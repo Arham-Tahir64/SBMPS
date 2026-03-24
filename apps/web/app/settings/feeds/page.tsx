@@ -1,5 +1,6 @@
-import { sampleFeedStatus } from "@sdmps/api-client";
-import { Card, ShellSection, StatusChip } from "@sdmps/ui";
+import { Card } from "@sdmps/ui";
+
+import { FeedsSettingsClient } from "./feeds-settings-client";
 
 export const metadata = {
   title: "Feed Health | SDMPS",
@@ -9,17 +10,8 @@ export const metadata = {
 export default function FeedSettingsPage() {
   return (
     <main style={{ padding: 24 }}>
-      <Card title="Feed Health" description="Source freshness and polling visibility">
-        {sampleFeedStatus.map((feed) => (
-          <ShellSection key={feed.source} title={feed.source}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <span>Last ingest: {feed.lastIngestedAt}</span>
-              <StatusChip tone={feed.isStale ? "high" : "low"}>
-                {feed.isStale ? "STALE" : "HEALTHY"}
-              </StatusChip>
-            </div>
-          </ShellSection>
-        ))}
+      <Card title="Feed Health" description="Source freshness, polling telemetry, and manual refresh">
+        <FeedsSettingsClient />
       </Card>
     </main>
   );

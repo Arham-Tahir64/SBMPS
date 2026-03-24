@@ -12,7 +12,8 @@ export function useFeedRefresh() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.live }),
         queryClient.invalidateQueries({ queryKey: queryKeys.objects }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.feeds })
+        queryClient.invalidateQueries({ queryKey: queryKeys.feeds }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.alerts })
       ]);
     }
   });
