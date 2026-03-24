@@ -1,0 +1,6 @@
+[project]
+name = "sdmps-sim"
+version = "0.1.0"
+description = "Shared simulation interfaces for SDMPS"
+requires-python = ">=3.12"
+dependencies = []

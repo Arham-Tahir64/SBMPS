@@ -1,0 +1,9 @@
+[project]
+name = "sdmps-data"
+version = "0.1.0"
+description = "Shared database package for SDMPS"
+requires-python = ">=3.12"
+dependencies = [
+  "sqlalchemy>=2.0.36",
+  "alembic>=1.14.0"
+]

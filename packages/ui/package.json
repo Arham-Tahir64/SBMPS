@@ -1,0 +1,16 @@
+{
+  "name": "@sdmps/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sdmps/domain": "workspace:*",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12"
+  },
+  "exports": {
+    ".": "./src/index.tsx"
+  }
+}
