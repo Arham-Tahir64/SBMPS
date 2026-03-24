@@ -58,6 +58,17 @@ export type AlertEvent = {
   createdAt: string;
 };
 
+export type TrajectoryPoint = {
+  t: string;
+  positionKm: [number, number, number];
+};
+
+export type ObjectTrajectory = {
+  objectId: string;
+  stepSeconds: number;
+  points: TrajectoryPoint[];
+};
+
 export type DashboardSummary = {
   epoch: string;
   trackedObjectCount: number;

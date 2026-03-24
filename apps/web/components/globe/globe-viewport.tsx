@@ -8,6 +8,7 @@ import type { ConjunctionEventSummary, TrackedObjectSummary } from "@sdmps/domai
 import type { LayerVisibility } from "../../store/operations-store";
 import { objectClassColor, riskTierColor, toScenePosition } from "@sdmps/scene";
 import { useAltitudeHeatmap } from "../../lib/queries/use-altitude-heatmap";
+import { useObjectTrajectory } from "../../lib/queries/use-object-trajectory";
 import { ConjunctionLayer } from "./layers/conjunction-layer";
 import { HeatmapLayer } from "./layers/heatmap-layer";
 import { ObjectLayer } from "./layers/object-layer";
@@ -225,6 +226,9 @@ export function GlobeViewport({
 }: GlobeViewportProps) {
   const selectedObject = objects.find((item) => item.id === selectedObjectId);
   const { data: heatmapBins } = useAltitudeHeatmap();
+  const { data: trajectory } = useObjectTrajectory(
+    layerVisibility.orbit ? selectedObjectId : undefined
+  );
 
   return (
     <div style={{ height: 560, borderRadius: 20, overflow: "hidden", position: "relative" }}>
@@ -250,8 +254,10 @@ export function GlobeViewport({
         {layerVisibility.heatmap ? <HeatmapLayer bins={heatmapBins} /> : null}
         {layerVisibility.orbit && selectedObject ? (
           <OrbitLayer
-            points={[toScenePosition(selectedObject.positionKm)]}
-            color={riskTierColor(selectedObject.riskTier)}
+            points={
+              trajectory?.points.map((p) => toScenePosition(p.positionKm)) ?? [toScenePosition(selectedObject.positionKm)]
+            }
+            color={objectClassColor(selectedObject.objectClass)}
           />
         ) : null}
       </Canvas>

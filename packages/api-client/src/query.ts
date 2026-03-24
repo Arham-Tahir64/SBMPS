@@ -4,6 +4,7 @@ import type {
   ConjunctionEventSummary,
   DashboardSummary,
   HeatmapBin,
+  ObjectTrajectory,
   SimulationJobSummary,
   TrackedObjectDetail,
   TrackedObjectSummary
@@ -12,6 +13,7 @@ import type {
 import { listAlerts } from "./endpoints/alerts";
 import { getDashboardSummary } from "./endpoints/dashboard";
 import { getAltitudeHeatmap } from "./endpoints/heatmaps";
+import { getObjectTrajectory } from "./endpoints/objects";
 import { getConjunction, listConjunctions } from "./endpoints/conjunctions";
 import { getFeedStatus } from "./endpoints/feeds";
 import { getLiveSnapshot, type LiveSnapshot } from "./endpoints/live";
@@ -44,6 +46,7 @@ export const queryKeys = {
   alerts: ["alerts"] as const,
   dashboard: ["dashboard"] as const,
   heatmap: ["heatmap"] as const,
+  trajectory: (id: string) => ["trajectory", id] as const,
 };
 
 export function isApiBaseUrlConfigured(): boolean {
@@ -98,6 +101,17 @@ export async function getFeedStatusWithFallback() {
 
 export async function getAlertsWithFallback(): Promise<QueryEnvelope<AlertEvent[]>> {
   return withFallback(listAlerts, sampleAlerts);
+}
+
+export async function getObjectTrajectoryWithFallback(
+  id: string,
+  minutes = 90
+): Promise<QueryEnvelope<ObjectTrajectory>> {
+  return withFallback(() => getObjectTrajectory(id, minutes), {
+    objectId: id,
+    stepSeconds: 60,
+    points: [],
+  });
 }
 
 export async function getAltitudeHeatmapWithFallback(): Promise<QueryEnvelope<HeatmapBin[]>> {
