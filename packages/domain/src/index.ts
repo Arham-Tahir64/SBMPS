@@ -46,6 +46,8 @@ export type FeedStatus = {
   lastIngestedAt: string;
   staleThresholdMinutes: number;
   isStale: boolean;
+  objectCount?: number | null;
+  message?: string | null;
 };
 
 export type AlertEvent = {

@@ -1,3 +1,5 @@
+"use client";
+
 import type { ReactNode } from "react";
 
 import type { RiskTier } from "@sdmps/domain";
@@ -77,7 +79,8 @@ export function DataTablePlaceholder({
   rowIds,
   selectedRowId,
   onRowClick,
-  caption
+  caption,
+  emptyMessage
 }: {
   columns: string[];
   rows: Array<Array<string>>;
@@ -85,6 +88,7 @@ export function DataTablePlaceholder({
   selectedRowId?: string;
   onRowClick?: (rowId: string) => void;
   caption?: string;
+  emptyMessage?: string;
 }) {
   return (
     <div style={{ overflowX: "auto" }}>
@@ -103,28 +107,67 @@ export function DataTablePlaceholder({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
-            <tr
-              key={rowIds?.[index] ?? row.join("::")}
-              onClick={rowIds?.[index] && onRowClick ? () => onRowClick(rowIds[index]) : undefined}
-              style={{
-                background: rowIds?.[index] === selectedRowId ? "rgba(83, 194, 255, 0.08)" : "transparent",
-                cursor: rowIds?.[index] && onRowClick ? "pointer" : "default"
-              }}
-            >
-              {row.map((value, cellIndex) => (
-                <td
-                  key={`${value}-${cellIndex}`}
+          {rows.length === 0 ? (
+            <tr>
+              <td
+                colSpan={columns.length}
+                style={{
+                  padding: "16px 12px",
+                  borderTop: "1px solid rgba(121, 178, 255, 0.14)",
+                  color: "var(--muted)"
+                }}
+              >
+                {emptyMessage ?? "No records available."}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row, index) => {
+              const rowId = rowIds?.[index];
+              const isInteractive = Boolean(rowId && onRowClick);
+              const isSelected = rowId === selectedRowId;
+              const handleSelect = () => {
+                if (rowId) {
+                  onRowClick?.(rowId);
+                }
+              };
+
+              return (
+                <tr
+                  key={rowId ?? row.join("::")}
+                  onClick={isInteractive ? handleSelect : undefined}
+                  onKeyDown={
+                    isInteractive
+                      ? (event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            handleSelect();
+                          }
+                        }
+                      : undefined
+                  }
+                  tabIndex={isInteractive ? 0 : -1}
+                  aria-selected={isSelected}
                   style={{
-                    padding: "12px",
-                    borderTop: "1px solid rgba(121, 178, 255, 0.14)"
+                    background: isSelected ? "rgba(83, 194, 255, 0.08)" : "transparent",
+                    cursor: isInteractive ? "pointer" : "default",
+                    outline: "none"
                   }}
                 >
-                  {value}
-                </td>
-              ))}
-            </tr>
-          ))}
+                  {row.map((value, cellIndex) => (
+                    <td
+                      key={`${value}-${cellIndex}`}
+                      style={{
+                        padding: "12px",
+                        borderTop: "1px solid rgba(121, 178, 255, 0.14)"
+                      }}
+                    >
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })
+          )}
         </tbody>
       </table>
     </div>

@@ -1,8 +1,10 @@
 import type {
+  ConjunctionEventDetail,
   ConjunctionEventSummary,
   FeedStatus,
   RiskTier,
   SimulationJobSummary,
+  TrackedObjectDetail,
   TrackedObjectSummary
 } from "@sdmps/domain";
 import type { LiveSnapshot } from "./endpoints/live";
@@ -44,12 +46,44 @@ export const sampleConjunctions: ConjunctionEventSummary[] = [
   }
 ];
 
+export const sampleObjectDetails: Record<string, TrackedObjectDetail> = {
+  "25544": {
+    ...sampleObjects[0],
+    velocityKmPerSecond: [7.66, 0.12, -0.03],
+    operatorName: "NASA",
+    source: "CelesTrak"
+  },
+  "40069": {
+    ...sampleObjects[1],
+    velocityKmPerSecond: [7.48, -0.21, 0.08],
+    operatorName: undefined,
+    source: "CelesTrak"
+  },
+  "33591": {
+    ...sampleObjects[2],
+    velocityKmPerSecond: [7.54, 0.18, -0.11],
+    operatorName: undefined,
+    source: "CelesTrak"
+  }
+};
+
+export const sampleConjunctionDetails: Record<string, ConjunctionEventDetail> = {
+  "cj-1": {
+    ...sampleConjunctions[0],
+    relativeVelocityKmPerSecond: 11.24,
+    pcValue: 0.00031,
+    methodology: "estimated"
+  }
+};
+
 export const sampleFeedStatus: FeedStatus[] = [
   {
     source: "CelesTrak",
     lastIngestedAt: "2026-03-24T00:00:00Z",
     staleThresholdMinutes: 240,
-    isStale: false
+    isStale: false,
+    objectCount: 3,
+    message: null
   }
 ];
 
@@ -68,6 +102,14 @@ export const sampleLiveSnapshot: LiveSnapshot = {
   conjunctions: sampleConjunctions,
   feeds: sampleFeedStatus
 };
+
+export function getSampleObjectDetail(id: string): TrackedObjectDetail | undefined {
+  return sampleObjectDetails[id];
+}
+
+export function getSampleConjunctionDetail(id: string): ConjunctionEventDetail | undefined {
+  return sampleConjunctionDetails[id];
+}
 
 export const sampleFilters: FilterDefinition[] = [
   { id: "class", label: "Object Class", options: ["active-satellite", "rocket-body", "debris-fragment"] },

@@ -15,6 +15,8 @@ type OperationsState = {
   layerVisibility: LayerVisibility;
   selectObject: (objectId?: string) => void;
   selectConjunction: (conjunctionId?: string) => void;
+  clearObjectSelection: () => void;
+  clearConjunctionSelection: () => void;
   toggleLayer: (layer: keyof LayerVisibility) => void;
 };
 
@@ -29,6 +31,8 @@ export const useOperationsStore = create<OperationsState>((set) => ({
   },
   selectObject: (selectedObjectId) => set({ selectedObjectId }),
   selectConjunction: (selectedConjunctionId) => set({ selectedConjunctionId }),
+  clearObjectSelection: () => set({ selectedObjectId: undefined }),
+  clearConjunctionSelection: () => set({ selectedConjunctionId: undefined }),
   toggleLayer: (layer) =>
     set((state) => ({
       layerVisibility: {
