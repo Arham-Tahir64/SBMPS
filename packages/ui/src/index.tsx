@@ -73,13 +73,22 @@ export function StatusChip({ tone, children }: { tone: RiskTier; children: React
 
 export function DataTablePlaceholder({
   columns,
-  rows
+  rows,
+  rowIds,
+  selectedRowId,
+  onRowClick,
+  caption
 }: {
   columns: string[];
   rows: Array<Array<string>>;
+  rowIds?: string[];
+  selectedRowId?: string;
+  onRowClick?: (rowId: string) => void;
+  caption?: string;
 }) {
   return (
     <div style={{ overflowX: "auto" }}>
+      {caption ? <div style={{ color: "var(--muted)", marginBottom: 12 }}>{caption}</div> : null}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
@@ -95,7 +104,14 @@ export function DataTablePlaceholder({
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={row.join("::")}>
+            <tr
+              key={rowIds?.[index] ?? row.join("::")}
+              onClick={rowIds?.[index] && onRowClick ? () => onRowClick(rowIds[index]) : undefined}
+              style={{
+                background: rowIds?.[index] === selectedRowId ? "rgba(83, 194, 255, 0.08)" : "transparent",
+                cursor: rowIds?.[index] && onRowClick ? "pointer" : "default"
+              }}
+            >
               {row.map((value, cellIndex) => (
                 <td
                   key={`${value}-${cellIndex}`}

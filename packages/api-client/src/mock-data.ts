@@ -5,6 +5,7 @@ import type {
   SimulationJobSummary,
   TrackedObjectSummary
 } from "@sdmps/domain";
+import type { LiveSnapshot } from "./endpoints/live";
 
 export type FilterDefinition = {
   id: string;
@@ -60,6 +61,13 @@ export const sampleSimulationJobs: SimulationJobSummary[] = [
     createdAt: "2026-03-24T01:00:00Z"
   }
 ];
+
+export const sampleLiveSnapshot: LiveSnapshot = {
+  epoch: "2026-03-24T00:00:00Z",
+  objects: sampleObjects,
+  conjunctions: sampleConjunctions,
+  feeds: sampleFeedStatus
+};
 
 export const sampleFilters: FilterDefinition[] = [
   { id: "class", label: "Object Class", options: ["active-satellite", "rocket-body", "debris-fragment"] },

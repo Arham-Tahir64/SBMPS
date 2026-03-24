@@ -1,35 +1,20 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from src.api.dependencies import get_object_service
 from src.schemas.object import TrackedObjectDetail, TrackedObjectSummary
+from src.services.objects import ObjectService
 
 
 router = APIRouter()
 
 
-def _sample_object() -> TrackedObjectDetail:
-    return TrackedObjectDetail(
-        id="25544",
-        name="ISS",
-        noradId=25544,
-        objectClass="active-satellite",
-        riskTier="low",
-        epoch="2026-03-24T00:00:00Z",
-        positionKm=[6800.0, 200.0, 50.0],
-        velocityKmPerSecond=[7.66, 0.01, 0.02],
-        operatorName="NASA",
-        source="CelesTrak",
-    )
-
-
 @router.get("", response_model=list[TrackedObjectSummary])
-def list_objects() -> list[TrackedObjectSummary]:
-    sample = _sample_object()
-    return [
-        TrackedObjectSummary(**sample.model_dump(exclude={"velocityKmPerSecond", "operatorName", "source"}))
-    ]
+def list_objects(service: ObjectService = Depends(get_object_service)) -> list[TrackedObjectSummary]:
+    return service.list_objects()
 
 
 @router.get("/{object_id}", response_model=TrackedObjectDetail)
-def get_object(object_id: str) -> TrackedObjectDetail:
-    sample = _sample_object()
-    return sample.model_copy(update={"id": object_id})
+def get_object(
+    object_id: str, service: ObjectService = Depends(get_object_service)
+) -> TrackedObjectDetail:
+    return service.get_object(object_id)

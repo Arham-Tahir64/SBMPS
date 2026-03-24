@@ -2,6 +2,7 @@
 
 import { Canvas } from "@react-three/fiber";
 import type { ConjunctionEventSummary, TrackedObjectSummary } from "@sdmps/domain";
+import type { LayerVisibility } from "../../store/operations-store";
 import { DEFAULT_CAMERA_POSITION, riskTierColor, toScenePosition } from "@sdmps/scene";
 import { ConjunctionLayer } from "./layers/conjunction-layer";
 import { HeatmapLayer } from "./layers/heatmap-layer";
@@ -12,9 +13,21 @@ type GlobeViewportProps = {
   objects: TrackedObjectSummary[];
   conjunctions: ConjunctionEventSummary[];
   selectedObjectId?: string;
+  selectedConjunctionId?: string;
+  layerVisibility: LayerVisibility;
+  onSelectObject: (objectId?: string) => void;
+  onSelectConjunction: (conjunctionId?: string) => void;
 };
 
-export function GlobeViewport({ objects, conjunctions, selectedObjectId }: GlobeViewportProps) {
+export function GlobeViewport({
+  objects,
+  conjunctions,
+  selectedObjectId,
+  selectedConjunctionId,
+  layerVisibility,
+  onSelectObject,
+  onSelectConjunction
+}: GlobeViewportProps) {
   const selectedObject = objects.find((item) => item.id === selectedObjectId);
 
   return (
@@ -26,10 +39,24 @@ export function GlobeViewport({ objects, conjunctions, selectedObjectId }: Globe
           <sphereGeometry args={[2, 64, 64]} />
           <meshStandardMaterial color="#0d2c53" emissive="#09213f" emissiveIntensity={0.4} wireframe />
         </mesh>
-        <ObjectLayer objects={objects} />
-        <ConjunctionLayer conjunctions={conjunctions} objects={objects} />
-        <HeatmapLayer />
-        {selectedObject ? <OrbitLayer points={[toScenePosition(selectedObject.positionKm)]} color={riskTierColor(selectedObject.riskTier)} /> : null}
+        {layerVisibility.objects ? (
+          <ObjectLayer objects={objects} selectedObjectId={selectedObjectId} onSelectObject={onSelectObject} />
+        ) : null}
+        {layerVisibility.conjunctions ? (
+          <ConjunctionLayer
+            conjunctions={conjunctions}
+            objects={objects}
+            selectedConjunctionId={selectedConjunctionId}
+            onSelectConjunction={onSelectConjunction}
+          />
+        ) : null}
+        {layerVisibility.heatmap ? <HeatmapLayer /> : null}
+        {layerVisibility.orbit && selectedObject ? (
+          <OrbitLayer
+            points={[toScenePosition(selectedObject.positionKm)]}
+            color={riskTierColor(selectedObject.riskTier)}
+          />
+        ) : null}
       </Canvas>
     </div>
   );

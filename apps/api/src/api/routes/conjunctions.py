@@ -1,34 +1,22 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from src.api.dependencies import get_conjunction_service
 from src.schemas.conjunction import ConjunctionEventDetail, ConjunctionEventSummary
+from src.services.conjunctions import ConjunctionService
 
 
 router = APIRouter()
 
 
-def _sample_conjunction() -> ConjunctionEventDetail:
-    return ConjunctionEventDetail(
-        id="cj-1",
-        primaryObjectId="25544",
-        primaryObjectName="ISS",
-        secondaryObjectId="40069",
-        secondaryObjectName="FENGYUN FRAG",
-        missDistanceKm=3.42,
-        tca="2026-03-24T12:15:00Z",
-        riskTier="high",
-        relativeVelocityKmPerSecond=12.3,
-        pcValue=None,
-        methodology="estimated",
-    )
-
-
 @router.get("", response_model=list[ConjunctionEventSummary])
-def list_conjunctions() -> list[ConjunctionEventSummary]:
-    sample = _sample_conjunction()
-    return [ConjunctionEventSummary(**sample.model_dump(exclude={"relativeVelocityKmPerSecond", "pcValue", "methodology"}))]
+def list_conjunctions(
+    service: ConjunctionService = Depends(get_conjunction_service),
+) -> list[ConjunctionEventSummary]:
+    return service.list_conjunctions()
 
 
 @router.get("/{conjunction_id}", response_model=ConjunctionEventDetail)
-def get_conjunction(conjunction_id: str) -> ConjunctionEventDetail:
-    sample = _sample_conjunction()
-    return sample.model_copy(update={"id": conjunction_id})
+def get_conjunction(
+    conjunction_id: str, service: ConjunctionService = Depends(get_conjunction_service)
+) -> ConjunctionEventDetail:
+    return service.get_conjunction(conjunction_id)

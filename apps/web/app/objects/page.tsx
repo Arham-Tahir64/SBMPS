@@ -1,5 +1,5 @@
-import { sampleObjects } from "@sdmps/api-client";
-import { Card, DataTablePlaceholder } from "@sdmps/ui";
+import { Card } from "@sdmps/ui";
+import { ObjectsPageClient } from "./objects-page-client";
 
 export const metadata = {
   title: "Objects | SDMPS",
@@ -10,10 +10,7 @@ export default function ObjectsPage() {
   return (
     <main style={{ padding: 24 }}>
       <Card title="Tracked Objects" description="Catalog drill-down for active satellites and debris">
-        <DataTablePlaceholder
-          columns={["Name", "Class", "Risk", "Epoch"]}
-          rows={sampleObjects.map((item) => [item.name, item.objectClass, item.riskTier, item.epoch])}
-        />
+        <ObjectsPageClient />
       </Card>
     </main>
   );

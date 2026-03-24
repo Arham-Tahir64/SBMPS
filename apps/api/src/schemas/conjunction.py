@@ -20,3 +20,15 @@ class ConjunctionEventDetail(ConjunctionEventSummary):
     relativeVelocityKmPerSecond: float
     pcValue: float | None = None
     methodology: Literal["estimated", "covariance-backed"]
+
+    def to_summary(self) -> ConjunctionEventSummary:
+        return ConjunctionEventSummary(
+            id=self.id,
+            primaryObjectId=self.primaryObjectId,
+            primaryObjectName=self.primaryObjectName,
+            secondaryObjectId=self.secondaryObjectId,
+            secondaryObjectName=self.secondaryObjectName,
+            missDistanceKm=self.missDistanceKm,
+            tca=self.tca,
+            riskTier=self.riskTier,
+        )

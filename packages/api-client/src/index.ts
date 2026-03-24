@@ -7,3 +7,4 @@ export * from "./endpoints/live";
 export * from "./endpoints/objects";
 export * from "./endpoints/simulations";
 export * from "./mock-data";
+export * from "./query";

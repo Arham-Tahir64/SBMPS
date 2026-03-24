@@ -4,9 +4,16 @@ import { riskTierColor, toScenePosition } from "@sdmps/scene";
 type ConjunctionLayerProps = {
   conjunctions: ConjunctionEventSummary[];
   objects: TrackedObjectSummary[];
+  selectedConjunctionId?: string;
+  onSelectConjunction: (conjunctionId?: string) => void;
 };
 
-export function ConjunctionLayer({ conjunctions, objects }: ConjunctionLayerProps) {
+export function ConjunctionLayer({
+  conjunctions,
+  objects,
+  selectedConjunctionId,
+  onSelectConjunction
+}: ConjunctionLayerProps) {
   return (
     <>
       {conjunctions.map((conjunction) => {
@@ -16,8 +23,12 @@ export function ConjunctionLayer({ conjunctions, objects }: ConjunctionLayerProp
         }
 
         return (
-          <mesh key={conjunction.id} position={toScenePosition(object.positionKm)}>
-            <sphereGeometry args={[0.09, 16, 16]} />
+          <mesh
+            key={conjunction.id}
+            position={toScenePosition(object.positionKm)}
+            onClick={() => onSelectConjunction(conjunction.id)}
+          >
+            <sphereGeometry args={[conjunction.id === selectedConjunctionId ? 0.14 : 0.09, 16, 16]} />
             <meshStandardMaterial color={riskTierColor(conjunction.riskTier)} wireframe />
           </mesh>
         );
