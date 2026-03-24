@@ -1,8 +1,9 @@
 import sqlite3
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sdmps_data import init_database
+from sdmps_data import ConjunctionEvent, RiskAssessment, init_database, session_scope
 
 from src.core.config import get_settings
 from src.ingestion import parse_tle_text
@@ -39,6 +40,39 @@ def client(tmp_path, monkeypatch):
         yield test_client
 
     get_settings.cache_clear()
+
+
+def seed_conjunction_event(
+    *,
+    conjunction_id: str = "cj-1",
+    primary_object_id: str = "25338",
+    secondary_object_id: str = "25544",
+    tca: str = "2026-03-24T01:20:00+00:00",
+    miss_distance_km: float = 4.2,
+    relative_velocity_km_s: float = 12.4,
+    risk_tier: str = "high",
+) -> None:
+    settings = get_settings()
+    with session_scope(settings.database_url) as session:
+        session.add(
+            ConjunctionEvent(
+                id=conjunction_id,
+                primary_object_id=primary_object_id,
+                secondary_object_id=secondary_object_id,
+                tca=datetime.fromisoformat(tca),
+                miss_distance_km=miss_distance_km,
+                relative_velocity_km_s=relative_velocity_km_s,
+            )
+        )
+        session.add(
+            RiskAssessment(
+                conjunction_event_id=conjunction_id,
+                risk_tier=risk_tier,
+                pc_value=None,
+                methodology="estimated",
+                assessed_at=datetime.fromisoformat(tca),
+            )
+        )
 
 
 def test_parse_tle_text_extracts_objects() -> None:
@@ -81,6 +115,17 @@ def test_refresh_persists_objects_and_feed_status(client: TestClient, monkeypatc
     assert feeds[0]["source"] == "CelesTrak"
     assert feeds[0]["objectCount"] == 2
     assert feeds[0]["isStale"] is False
+
+
+def test_live_snapshot_includes_persisted_conjunctions(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr("src.ingestion.fetch_celestrak_tles", lambda: SAMPLE_TLE)
+    client.post("/v1/feeds/refresh")
+    seed_conjunction_event()
+
+    payload = client.get("/v1/live/snapshot").json()
+    assert len(payload["conjunctions"]) == 1
+    assert payload["conjunctions"][0]["id"] == "cj-1"
+    assert payload["conjunctions"][0]["riskTier"] == "high"
 
 
 def test_refresh_upserts_objects_and_tle_snapshots_without_duplicates(
@@ -129,9 +174,45 @@ def test_get_object_not_found(client: TestClient) -> None:
 def test_dashboard_summary_uses_persisted_counts(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr("src.ingestion.fetch_celestrak_tles", lambda: SAMPLE_TLE)
     client.post("/v1/feeds/refresh")
+    seed_conjunction_event()
     payload = client.get("/v1/dashboard/summary").json()
     assert payload["trackedObjectCount"] == 2
     assert payload["activeFeedCount"] == 1
+    assert payload["highRiskConjunctionCount"] == 1
+    assert payload["criticalRiskConjunctionCount"] == 0
+
+
+def test_conjunction_detail_and_alerts_read_from_persisted_state(
+    client: TestClient, monkeypatch
+) -> None:
+    monkeypatch.setattr("src.ingestion.fetch_celestrak_tles", lambda: SAMPLE_TLE)
+    client.post("/v1/feeds/refresh")
+    seed_conjunction_event()
+
+    conjunctions = client.get("/v1/conjunctions").json()
+    assert len(conjunctions) == 1
+
+    detail = client.get("/v1/conjunctions/cj-1").json()
+    assert detail["id"] == "cj-1"
+    assert detail["methodology"] == "estimated"
+    assert detail["pcValue"] is None
+    assert detail["relativeVelocityKmPerSecond"] == pytest.approx(12.4)
+
+    alerts = client.get("/v1/alerts").json()
+    assert len(alerts) == 1
+    assert alerts[0]["id"] == "cj-1"
+    assert alerts[0]["severity"] == "high"
+
+
+def test_heatmap_uses_persisted_current_state_and_conjunctions(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr("src.ingestion.fetch_celestrak_tles", lambda: SAMPLE_TLE)
+    client.post("/v1/feeds/refresh")
+    seed_conjunction_event()
+
+    bins = client.get("/v1/heatmaps/altitude").json()
+    assert len(bins) == 18
+    assert any(item["density"] > 0 for item in bins)
+    assert any(item["riskConcentration"] > 0 for item in bins)
 
 
 def test_operations_events_stream(client: TestClient) -> None:
@@ -139,3 +220,14 @@ def test_operations_events_stream(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
     assert "event: operations" in response.text
+
+
+def test_operations_events_include_conjunction_alerts(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr("src.ingestion.fetch_celestrak_tles", lambda: SAMPLE_TLE)
+    client.post("/v1/feeds/refresh")
+    seed_conjunction_event(risk_tier="critical", miss_distance_km=0.7)
+
+    response = client.get("/v1/live/operations/events")
+    assert response.status_code == 200
+    assert "conjunction-cj-1" in response.text
+    assert '"kind": "conjunction"' in response.text
