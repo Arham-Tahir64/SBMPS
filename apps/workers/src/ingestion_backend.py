@@ -2,9 +2,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from itertools import combinations
+from math import sqrt
 
-from sqlalchemy import and_, func, select
-from sdmps_data import CurrentState, FeedStatus, SpaceObject, TleSnapshot, init_database, session_scope
+from sqlalchemy import and_, delete, func, select
+from sdmps_data import (
+    ConjunctionEvent,
+    CurrentState,
+    FeedStatus,
+    RiskAssessment,
+    SpaceObject,
+    TleSnapshot,
+    init_database,
+    session_scope,
+)
 from sdmps_integrations import CelesTrakClient
 
 from src.core.config import get_settings
@@ -274,7 +285,7 @@ def refresh_current_states() -> int:
             if state is None:
                 state = CurrentState(
                     object_id=tle_snapshot.object_id,
-                    epoch=tle_snapshot.epoch,
+                    epoch=propagated_at,
                     propagated_at=propagated_at,
                     position_x_km=position[0],
                     position_y_km=position[1],
@@ -285,7 +296,7 @@ def refresh_current_states() -> int:
                 )
                 session.add(state)
             else:
-                state.epoch = tle_snapshot.epoch
+                state.epoch = propagated_at
                 state.propagated_at = propagated_at
                 state.position_x_km = position[0]
                 state.position_y_km = position[1]
@@ -296,3 +307,86 @@ def refresh_current_states() -> int:
             updated_count += 1
 
     return updated_count
+
+
+def _distance_km(left: CurrentState, right: CurrentState) -> float:
+    delta_x = left.position_x_km - right.position_x_km
+    delta_y = left.position_y_km - right.position_y_km
+    delta_z = left.position_z_km - right.position_z_km
+    return sqrt((delta_x * delta_x) + (delta_y * delta_y) + (delta_z * delta_z))
+
+
+def _relative_velocity_km_s(left: CurrentState, right: CurrentState) -> float:
+    delta_x = left.velocity_x_km_s - right.velocity_x_km_s
+    delta_y = left.velocity_y_km_s - right.velocity_y_km_s
+    delta_z = left.velocity_z_km_s - right.velocity_z_km_s
+    return sqrt((delta_x * delta_x) + (delta_y * delta_y) + (delta_z * delta_z))
+
+
+def refresh_conjunction_events(max_miss_distance_km: float = 25.0) -> int:
+    init_db()
+    settings = get_settings()
+
+    with session_scope(settings.database_url) as session:
+        states = list(session.scalars(select(CurrentState).order_by(CurrentState.object_id.asc())))
+        session.execute(delete(RiskAssessment))
+        session.execute(delete(ConjunctionEvent))
+
+        created_count = 0
+        for left_state, right_state in combinations(states, 2):
+            miss_distance_km = _distance_km(left_state, right_state)
+            if miss_distance_km > max_miss_distance_km:
+                continue
+
+            primary_object_id, secondary_object_id = sorted(
+                [left_state.object_id, right_state.object_id],
+                key=lambda object_id: int(object_id),
+            )
+            tca = left_state.epoch if left_state.epoch >= right_state.epoch else right_state.epoch
+            event = ConjunctionEvent(
+                id=f"{primary_object_id}-{secondary_object_id}-{tca.isoformat()}",
+                primary_object_id=primary_object_id,
+                secondary_object_id=secondary_object_id,
+                tca=tca,
+                miss_distance_km=miss_distance_km,
+                relative_velocity_km_s=_relative_velocity_km_s(left_state, right_state),
+            )
+            session.add(event)
+            created_count += 1
+
+    return created_count
+
+
+def _risk_tier_for_miss_distance(miss_distance_km: float) -> str:
+    if miss_distance_km < 1:
+        return "critical"
+    if miss_distance_km < 5:
+        return "high"
+    if miss_distance_km < 10:
+        return "medium"
+    return "low"
+
+
+def refresh_risk_assessments() -> int:
+    init_db()
+    settings = get_settings()
+
+    with session_scope(settings.database_url) as session:
+        session.execute(delete(RiskAssessment))
+        events = list(session.scalars(select(ConjunctionEvent).order_by(ConjunctionEvent.tca.asc())))
+
+        created_count = 0
+        assessed_at = datetime.now(UTC)
+        for event in events:
+            session.add(
+                RiskAssessment(
+                    conjunction_event_id=event.id,
+                    risk_tier=_risk_tier_for_miss_distance(event.miss_distance_km),
+                    pc_value=None,
+                    methodology="estimated",
+                    assessed_at=assessed_at,
+                )
+            )
+            created_count += 1
+
+    return created_count

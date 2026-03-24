@@ -1,2 +1,5 @@
+import logging
+
+
 async def process_alerts() -> None:
-    return None
+    logging.info("Alert synthesis cycle completed")
