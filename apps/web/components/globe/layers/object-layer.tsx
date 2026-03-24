@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef } from "react";
-import type { ThreeEvent } from "@react-three/fiber";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import type { ThreeEvent } from "@react-three/fiber";
 import type { TrackedObjectSummary } from "@sdmps/domain";
-import { objectClassColor, riskTierColor, toScenePosition } from "@sdmps/scene";
+import { objectClassColor, toScenePosition } from "@sdmps/scene";
 
 const MAX_OBJECTS = 2000;
 const INSTANCE_RADIUS = 0.045;
@@ -17,57 +17,53 @@ type ObjectLayerProps = {
 export function ObjectLayer({ objects, selectedObjectId, onSelectObject }: ObjectLayerProps) {
   const visibleObjects = useMemo(() => objects.slice(0, MAX_OBJECTS), [objects]);
 
-  const meshRef = useRef<THREE.InstancedMesh>(null);
+  /**
+   * Create the InstancedMesh once. Critically, we call setColorAt(0, white)
+   * immediately so instanceColor is non-null before the mesh is ever added
+   * to the scene. This ensures Three.js compiles the shader with
+   * USE_INSTANCING_COLOR defined — preventing the "all instances black" bug
+   * that occurs when instanceColor is null at first shader compilation.
+   */
+  const mesh = useMemo(() => {
+    const geometry = new THREE.SphereGeometry(INSTANCE_RADIUS, 8, 8);
+    const material = new THREE.MeshStandardMaterial({ emissiveIntensity: 0.25 });
+    const m = new THREE.InstancedMesh(geometry, material, MAX_OBJECTS);
+    m.count = 0;
+    // Seed instanceColor so USE_INSTANCING_COLOR is active from first render.
+    m.setColorAt(0, new THREE.Color(1, 1, 1));
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    return m;
+  }, []);
 
-  // Shared geometry and material for the instanced mesh
-  const geometry = useMemo(() => new THREE.SphereGeometry(INSTANCE_RADIUS, 8, 8), []);
-  const material = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        emissiveIntensity: 0.3
-      }),
-    []
-  );
-
-  // Set instance matrices and colors whenever visible objects change
+  // Update matrices and colors whenever visible objects change.
   useEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
+    mesh.count = visibleObjects.length;
 
     for (let i = 0; i < visibleObjects.length; i++) {
-      const object = visibleObjects[i];
-      if (!object) continue;
-      const [x, y, z] = toScenePosition(object.positionKm);
+      const obj = visibleObjects[i];
+      if (!obj) continue;
+      const [x, y, z] = toScenePosition(obj.positionKm);
       dummy.position.set(x, y, z);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
-
-      color.set(objectClassColor(object.objectClass));
+      color.set(objectClassColor(obj.objectClass));
       mesh.setColorAt(i, color);
     }
 
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) {
-      mesh.instanceColor.needsUpdate = true;
-    }
-  }, [visibleObjects]);
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [mesh, visibleObjects]);
 
-  // Map instanceId back to object id for click handling
-  const handleClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation();
-    if (event.instanceId !== undefined) {
-      const clicked = visibleObjects[event.instanceId];
-      if (clicked) {
-        onSelectObject(clicked.id);
-      }
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    if (e.instanceId !== undefined) {
+      const clicked = visibleObjects[e.instanceId];
+      if (clicked) onSelectObject(clicked.id);
     }
   };
 
-  // Find selected object from the visible slice for the overlay mesh
   const selectedObject = useMemo(
     () => visibleObjects.find((o) => o.id === selectedObjectId),
     [visibleObjects, selectedObjectId]
@@ -75,17 +71,11 @@ export function ObjectLayer({ objects, selectedObjectId, onSelectObject }: Objec
 
   return (
     <>
-      {/* Single draw call for all objects */}
-      <instancedMesh
-        ref={meshRef}
-        args={[geometry, material, visibleObjects.length]}
-        onClick={handleClick}
-      />
+      <primitive object={mesh} onClick={handleClick} />
 
-      {/* Separate larger mesh rendered on top of the selected object */}
       {selectedObject ? (
         <mesh position={toScenePosition(selectedObject.positionKm)}>
-          <sphereGeometry args={[SELECTED_RADIUS, 16, 16]} />
+          <sphereGeometry args={[SELECTED_RADIUS, 14, 14]} />
           <meshStandardMaterial
             color={objectClassColor(selectedObject.objectClass)}
             emissive={objectClassColor(selectedObject.objectClass)}
