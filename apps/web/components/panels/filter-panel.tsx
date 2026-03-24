@@ -27,7 +27,7 @@ function formatTimestamp(value: string): string {
     return value;
   }
 
-  return new Date(timestamp).toLocaleString();
+  return new Date(timestamp).toISOString().replace("T", " ").slice(0, 19) + " UTC";
 }
 
 export function FilterPanel({

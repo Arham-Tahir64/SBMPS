@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import { AppNav } from "../components/layout/app-nav";
 import { Providers } from "./providers";
 
 export const metadata = {
@@ -12,7 +13,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <div className="app-shell">
+            <AppNav />
+            <main className="content">{children}</main>
+          </div>
+        </Providers>
       </body>
     </html>
   );

@@ -34,7 +34,9 @@ export function LiveOperationsClient() {
 
   useEffect(() => {
     if (data.objects.length === 0) {
-      clearObjectSelection();
+      if (selectedObjectId !== undefined) {
+        clearObjectSelection();
+      }
       return;
     }
 
@@ -45,7 +47,9 @@ export function LiveOperationsClient() {
 
   useEffect(() => {
     if (data.conjunctions.length === 0) {
-      clearConjunctionSelection();
+      if (selectedConjunctionId !== undefined) {
+        clearConjunctionSelection();
+      }
       return;
     }
 

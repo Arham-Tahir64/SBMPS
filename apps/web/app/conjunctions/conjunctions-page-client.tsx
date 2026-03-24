@@ -17,7 +17,9 @@ export function ConjunctionsPageClient() {
 
   useEffect(() => {
     if (data.length === 0) {
-      clearConjunctionSelection();
+      if (selectedConjunctionId !== undefined) {
+        clearConjunctionSelection();
+      }
       return;
     }
 

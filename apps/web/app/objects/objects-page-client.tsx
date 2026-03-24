@@ -17,7 +17,9 @@ export function ObjectsPageClient() {
 
   useEffect(() => {
     if (data.length === 0) {
-      clearObjectSelection();
+      if (selectedObjectId !== undefined) {
+        clearObjectSelection();
+      }
       return;
     }
 

@@ -1,8 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 import type { RiskTier } from "@sdmps/domain";
+
+// ---------------------------------------------------------------------------
+// Existing exports (unchanged)
+// ---------------------------------------------------------------------------
 
 export function Card({
   title,
@@ -212,6 +217,291 @@ export function DataTablePlaceholder({
           )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// New exports
+// ---------------------------------------------------------------------------
+
+/**
+ * NavItem — a navigation link with an icon slot, label, and active state.
+ * Designed for sidebar or horizontal nav bars.
+ */
+export function NavItem({
+  href,
+  label,
+  icon,
+  isActive = false
+}: {
+  href: string;
+  label: string;
+  icon?: ReactNode;
+  isActive?: boolean;
+}) {
+  return (
+    <a
+      href={href}
+      aria-current={isActive ? "page" : undefined}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "9px 14px",
+        borderRadius: 10,
+        fontSize: 13,
+        fontWeight: isActive ? 600 : 400,
+        letterSpacing: "0.02em",
+        color: isActive ? "var(--accent)" : "var(--muted)",
+        background: isActive ? "rgba(83, 194, 255, 0.1)" : "transparent",
+        borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+        textDecoration: "none",
+        transition: "background 0.15s, color 0.15s"
+      }}
+    >
+      {icon ? (
+        <span style={{ display: "flex", flexShrink: 0, opacity: isActive ? 1 : 0.65 }}>
+          {icon}
+        </span>
+      ) : null}
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {label}
+      </span>
+    </a>
+  );
+}
+
+/**
+ * MissionClock — displays the current UTC date and time, updating every second.
+ * Self-contained client component; safe to render anywhere in the tree.
+ */
+export function MissionClock() {
+  const [utcTime, setUtcTime] = useState<string>(() => new Date().toISOString());
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setUtcTime(new Date().toISOString());
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const [datePart, timeFull] = utcTime.split("T");
+  const timePart = timeFull?.slice(0, 8) ?? "--:--:--";
+
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        lineHeight: 1.2
+      }}
+    >
+      <span
+        style={{
+          fontFamily: '"SF Mono", "Fira Code", "Consolas", monospace',
+          fontSize: 15,
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+          color: "var(--accent)"
+        }}
+      >
+        {timePart}
+        <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: 4 }}>UTC</span>
+      </span>
+      <span style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.06em" }}>
+        {datePart}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * RiskBadge — colored dot + label reflecting the PRD risk tier color system
+ * (REQ-VIS-02). Replaces or complements StatusChip with a more visual treatment.
+ *
+ * Low      → green  (#4ed4a8 / --risk-low)
+ * Medium   → yellow (#f7d154 / --risk-medium)
+ * High     → orange (#ff9d42 / --risk-high)
+ * Critical → red    (#ff4d4d / --risk-critical)
+ */
+export function RiskBadge({ tier, label }: { tier: RiskTier; label?: string }) {
+  const colorByTier: Record<RiskTier, string> = {
+    low: "var(--risk-low, #4ed4a8)",
+    medium: "var(--risk-medium, #f7d154)",
+    high: "var(--risk-high, #ff9d42)",
+    critical: "var(--risk-critical, #ff4d4d)"
+  };
+
+  const backgroundByTier: Record<RiskTier, string> = {
+    low: "rgba(78, 212, 168, 0.12)",
+    medium: "rgba(247, 209, 84, 0.12)",
+    high: "rgba(255, 157, 66, 0.12)",
+    critical: "rgba(255, 77, 77, 0.12)"
+  };
+
+  const defaultLabel: Record<RiskTier, string> = {
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+    critical: "Critical"
+  };
+
+  const color = colorByTier[tier];
+  const displayLabel = label ?? defaultLabel[tier];
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 10px",
+        borderRadius: 999,
+        background: backgroundByTier[tier],
+        border: `1px solid ${color}44`,
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        color
+      }}
+    >
+      {/* Colored dot */}
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: color,
+          boxShadow: `0 0 5px ${color}`,
+          flexShrink: 0
+        }}
+      />
+      {displayLabel}
+    </span>
+  );
+}
+
+/**
+ * MetricTile — compact stat display: label + large number + optional trend.
+ * Suitable for dashboard header rows or summary strips.
+ *
+ * trend: "up" | "down" | "neutral" — adds a directional indicator beside the value.
+ */
+export function MetricTile({
+  label,
+  value,
+  trend,
+  unit
+}: {
+  label: string;
+  value: string | number;
+  trend?: "up" | "down" | "neutral";
+  unit?: string;
+}) {
+  const trendColor = trend === "up" ? "var(--danger)" : trend === "down" ? "var(--success)" : "var(--muted)";
+  const trendSymbol = trend === "up" ? "\u2191" : trend === "down" ? "\u2193" : "\u2014";
+
+  return (
+    <div
+      style={{
+        background: "var(--panel)",
+        border: "1px solid var(--panel-border)",
+        borderRadius: 14,
+        padding: "12px 16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        minWidth: 110
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: "var(--muted)"
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+        <span
+          style={{
+            fontFamily: '"SF Mono", "Fira Code", monospace',
+            fontSize: 24,
+            fontWeight: 700,
+            lineHeight: 1,
+            color: "var(--text)"
+          }}
+        >
+          {value}
+        </span>
+        {unit ? (
+          <span style={{ fontSize: 11, color: "var(--muted)" }}>{unit}</span>
+        ) : null}
+        {trend ? (
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: trendColor,
+              lineHeight: 1,
+              marginLeft: 2
+            }}
+            aria-label={trend === "up" ? "trending up" : trend === "down" ? "trending down" : "no change"}
+          >
+            {trendSymbol}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SectionDivider — thin horizontal rule with an optional centered text label.
+ * Uses var(--panel-border) so it blends with the panel aesthetic.
+ */
+export function SectionDivider({ label }: { label?: string }) {
+  if (!label) {
+    return (
+      <hr
+        style={{
+          border: "none",
+          borderTop: "1px solid var(--panel-border)",
+          margin: "12px 0"
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        margin: "12px 0"
+      }}
+    >
+      <div style={{ flex: 1, height: 1, background: "var(--panel-border)" }} />
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: "var(--muted)",
+          flexShrink: 0
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: "var(--panel-border)" }} />
     </div>
   );
 }
