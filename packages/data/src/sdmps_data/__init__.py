@@ -4,6 +4,7 @@ from sdmps_data.models import (
     CurrentState,
     FeedStatus,
     RiskAssessment,
+    SimulationJob,
     SpaceObject,
     TleSnapshot,
 )
@@ -15,6 +16,7 @@ __all__ = [
     "CurrentState",
     "FeedStatus",
     "RiskAssessment",
+    "SimulationJob",
     "SpaceObject",
     "TleSnapshot",
     "create_session_factory",

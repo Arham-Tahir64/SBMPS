@@ -144,3 +144,22 @@ class RiskAssessment(Base):
     assessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     conjunction_event: Mapped[ConjunctionEvent] = relationship(back_populates="risk_assessment")
+
+
+class SimulationJob(Base):
+    __tablename__ = "simulation_jobs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scenario_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued", index=True)
+    duration_days: Mapped[int] = mapped_column(Integer, nullable=False, default=7)
+    object_sample_size: Mapped[int] = mapped_column(Integer, nullable=False, default=500)
+    step_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    conjunctions_detected: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    critical_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    high_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    objects_analyzed: Mapped[int | None] = mapped_column(Integer, nullable=True)

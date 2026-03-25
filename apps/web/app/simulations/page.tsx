@@ -1,22 +1,16 @@
-import { Card, ShellSection } from "@sdmps/ui";
-import { isSimulationsEnabled } from "../../lib/features";
+import { Card } from "@sdmps/ui";
+import { SimulationsClient } from "./simulations-client";
 
 export const metadata = {
   title: "Simulations | SDMPS",
-  description: "Simulation workspace placeholder for SDMPS."
+  description: "Simulation workspace for SDMPS."
 };
 
 export default function SimulationsPage() {
-  const enabled = isSimulationsEnabled();
-
   return (
     <main style={{ padding: 24 }}>
-      <Card title="Simulations" description="Feature-flagged v1.5 workspace">
-        <ShellSection title="Status">
-          {enabled
-            ? "Simulation creation and result exploration will hydrate from the API once the backend feature lands."
-            : "Simulation routes are currently disabled by NEXT_PUBLIC_FEATURE_SIMULATIONS."}
-        </ShellSection>
+      <Card title="Simulations" description="Run forward-propagation conjunction scans over a sampled object catalog">
+        <SimulationsClient />
       </Card>
     </main>
   );

@@ -92,8 +92,26 @@ export const sampleSimulationJobs: SimulationJobSummary[] = [
   {
     id: "sim-1",
     scenarioName: "LEO ten-year baseline",
+    status: "completed",
+    createdAt: "2026-03-24T01:00:00Z",
+    durationDays: 7,
+    objectSampleSize: 500,
+    stepHours: 6,
+    startedAt: "2026-03-24T01:00:05Z",
+    completedAt: "2026-03-24T01:02:30Z",
+    conjunctionsDetected: 14,
+    criticalCount: 2,
+    highCount: 5,
+    objectsAnalyzed: 500,
+  },
+  {
+    id: "sim-2",
+    scenarioName: "GEO debris scan",
     status: "queued",
-    createdAt: "2026-03-24T01:00:00Z"
+    createdAt: "2026-03-24T02:00:00Z",
+    durationDays: 3,
+    objectSampleSize: 100,
+    stepHours: 1,
   }
 ];
 

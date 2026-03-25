@@ -83,6 +83,16 @@ export type SimulationJobSummary = {
   scenarioName: string;
   status: "queued" | "running" | "completed" | "failed";
   createdAt: string;
+  durationDays: number;
+  objectSampleSize: number;
+  stepHours: number;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  errorMessage?: string | null;
+  conjunctionsDetected?: number | null;
+  criticalCount?: number | null;
+  highCount?: number | null;
+  objectsAnalyzed?: number | null;
 };
 
 export const riskTierLabel: Record<RiskTier, string> = {

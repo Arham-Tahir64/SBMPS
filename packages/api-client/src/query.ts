@@ -18,7 +18,9 @@ import { getConjunction, listConjunctions } from "./endpoints/conjunctions";
 import { getFeedStatus } from "./endpoints/feeds";
 import { getLiveSnapshot, type LiveSnapshot } from "./endpoints/live";
 import { getObject, listObjects } from "./endpoints/objects";
-import { listSimulations } from "./endpoints/simulations";
+import { createSimulation, listSimulations } from "./endpoints/simulations";
+export type { CreateSimulationInput } from "./endpoints/simulations";
+export { createSimulation };
 import {
   getSampleConjunctionDetail,
   getSampleObjectDetail,
